@@ -1,0 +1,260 @@
+version: 2.1
+
+description: Builds a Haskell application using cabal new-*.
+
+examples:
+  build-application:
+    description: |
+      A typical workflow to build Haskell application.
+      It uses the default executor (GHC 8.4.4) to build an app.
+    usage:
+      version: 2.1
+
+      orbs:
+        haskell: haskell-works/haskell-build:1.0.0
+
+      workflows:
+        build-my-application:
+          jobs:
+            - haskell/build:
+                cabal-file: my-application.cabal
+
+  use-different-ghc:
+    description: |
+      A workflow that uses a different GHC to build.
+      Executors with GHC 8.4.4 (haskell/ghc-844) and GHC 8.6.3 (haskell/ghc-863) are supported out-of-box.
+    usage:
+      version: 2.1
+
+      orbs:
+        haskell: haskell-works/haskell-build:1.0.0
+
+      workflows:
+        build-my-application:
+          jobs:
+            - haskell/build:
+                cabal-file: my-application.cabal
+                executor: haskell/ghc-863
+
+  use-custom-executor:
+    description: |
+      Sometimes using a custom executor (an image with GHC) is benefitial.
+      For example if building code requires some extra native libraries/packages
+      to be installed, or simply if it is more convenient to have full control
+      over a build environment.
+
+    usage:
+      version: 2.1
+
+      my-custom-haskell-executor:
+        docker:
+          - image: quay.io/haskell_works/ghc-8.4.4:latest
+
+      orbs:
+        haskell: haskell-works/haskell-build:1.0.0
+
+      workflows:
+        build-my-application:
+          jobs:
+            - haskell/build:
+                cabal-file: my-application.cabal
+                executor: my-custom-haskell-executor
+
+  build-library:
+    description: |
+      Building a library often requires building and testing it with multiple versions of GHC.
+      It also does not require producing binaries, so in this example we disable writing a workspace.
+
+    usage:
+      version: 2.1
+
+      orbs:
+        haskell: haskell-works/haskell-build:1.0.0
+
+      workflows:
+        build-my-application:
+          jobs:
+            - haskell/build:
+                cabal-file: my-library.cabal
+                executor: haskell/ghc-844
+                write-result-workspace: false
+
+
+            - haskell/build:
+                cabal-file: my-library.cabal
+                executor: haskell/ghc-863
+                write-result-workspace: false
+
+
+executors:
+  ghc-844:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.4.4:latest
+  ghc-863:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.6.3:latest
+
+commands:
+  override-ghc:
+    steps:
+      - run:
+          name: Override GHC version
+          command: |
+            test -f cabal.project || echo 'packages: .' > cabal.project
+            _ghc_ver=$(ghc --numeric-version)
+            sed -i '/^with-compiler:/{h;s/:.*/: ghc-'"$_ghc_ver"'/};${x;/^$/{s//with-compiler: ghc-'"$_ghc_ver"'/;H};x}' cabal.project
+
+  set-project-env:
+    steps:
+      - run:
+          name: Setting project environment
+          command: |
+            mkdir -p ./build
+            BUILD_DIST="./dist-newstyle/build"
+            BUILD_CABAL_VER=$(cabal --numeric-version)
+            BUILD_GHC_VER=$(cat cabal.project | grep 'with-compiler:' | head -n 1 | tr -s ' ' | cut -d' ' -f2 | cut -d'-' -f2)
+            if [ "$BUILD_GHC_VER" = "" ]; then BUILD_GHC_VER=$(ghc -- --numeric-version); fi
+            BUILD_PROJECT_NAME=$(cat *.cabal | grep '^name:' | head -n 1 | cut -d : -f 2 | xargs)
+            BUILD_PROJECT_VERSION=$(cat *.cabal | grep -e "^version" | head -n 1 | tr -s " " | cut -d' ' -f2)
+            BUILD_EXE_NAME=$(cat *.cabal | grep 'executable ' | head -n 1 | tr -s ' ' | cut -d' ' -f2)
+            BUILD_ARCH=$(uname -m)
+            BUILD_OS_NAME=$(uname -s | tr '[:upper:]' '[:lower:]')
+            BUILD_OS_SUFFIX=$BUILD_OS_NAME
+            if [ "$BUILD_OS_SUFFIX" = "darwin" ]; then BUILD_OS_SUFFIX="osx"; fi
+
+            echo "$BUILD_GHC_VER" > ./build/ghc-version.txt
+
+            echo "export BUILD_CABAL_VER=$BUILD_CABAL_VER"              > ./build/project.env
+            echo "export BUILD_GHC_VER=$BUILD_GHC_VER"                 >> ./build/project.env
+            echo "export BUILD_ARCH=$BUILD_ARCH"                       >> ./build/project.env
+            echo "export BUILD_OS_NAME=$BUILD_OS_NAME"                 >> ./build/project.env
+            echo "export BUILD_OS_SUFFIX=$BUILD_OS_SUFFIX"             >> ./build/project.env
+            echo "export BUILD_PROJECT_NAME=$BUILD_PROJECT_NAME"       >> ./build/project.env
+            echo "export BUILD_PROJECT_VERSION=$BUILD_PROJECT_VERSION" >> ./build/project.env
+            echo "export BUILD_EXE_NAME=$BUILD_EXE_NAME"               >> ./build/project.env
+
+
+            cat ./build/project.env >> $BASH_ENV
+            cat $BASH_ENV
+            source $BASH_ENV
+
+  copy-bin:
+    steps:
+      - run:
+          name: Copying executable
+          command: |
+            _os_suffix=$OS_NAME
+            if [ "$_os_suffix" = "darwin" ]; then _os_suffix="osx"; fi
+            _bin_path="./dist-newstyle/build/$BUILD_ARCH-$BUILD_OS_NAME/ghc-$BUILD_GHC_VER/$BUILD_PROJECT_NAME-$BUILD_PROJECT_VERSION/x/$BUILD_EXE_NAME/build/$BUILD_EXE_NAME/$BUILD_EXE_NAME"
+            echo "Exe path: $_bin_path"
+            if [ -f "$_bin_path" ]; then
+              mkdir -p ./build/dist
+              cp $_bin_path ./build/dist
+            fi
+            ls --recursive ./build
+
+jobs:
+  build:
+    parameters:
+      cabal-threads:
+        description: Number of Cabal threads.
+        type: integer
+        default: 4
+      cabal-file:
+        description: Cabal file name (including the .cabal extension)
+        type: string
+      run-tests:
+        description: Boolean for whether or not to run unit tests
+        type: boolean
+        default: true
+      executor:
+        type: executor
+        default: ghc-844
+      write-result-workspace:
+        description: Boolean for whether or not to persist results to a workspace.
+        type: boolean
+        default: true
+      before-build:
+        description: Optional steps to run after cabal update but before build
+        type: steps
+        default: []
+      after-build:
+        description: Optional steps to run after build but before running tests
+        type: steps
+        default: []
+      after-test:
+        description: Optional steps to run after executing unit tests
+        type: steps
+        default: []
+
+    executor: << parameters.executor >>
+    steps:
+      - checkout
+      - run: git fetch --unshallow || true
+      - override-ghc
+      - set-project-env
+
+      - restore_cache:
+          keys:
+            - dot-cabal-{{ checksum "./build/ghc-version.txt" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "<< parameters.cabal-file >>" }}
+            - dot-cabal-{{ checksum "./build/ghc-version.txt" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}
+            - dot-cabal-{{ checksum "./build/ghc-version.txt" }}
+
+      - restore_cache:
+          keys:
+            - dist-{{ checksum "./build/ghc-version.txt" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "<< parameters.cabal-file >>" }}
+            - dist-{{ checksum "./build/ghc-version.txt" }}-{{ checksum "cabal.project" }}
+
+      - run: cabal new-update -j<< parameters.cabal-threads >>
+
+      - when:
+          name: Running before-build hook steps
+          condition: << parameters.before-build >>
+          steps: << parameters.before-build >>
+
+      - run: cabal new-build --enable-tests --dependencies-only -j<< parameters.cabal-threads >>
+
+      - save_cache:
+          key: dot-cabal-{{ checksum "./build/ghc-version.txt" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}
+          paths: [~/.cabal/packages, ~/.cabal/store]
+
+      - save_cache:
+          key: dot-cabal-{{ checksum "./build/ghc-version.txt" }}
+          paths: [~/.cabal/packages, ~/.cabal/store]
+
+      - run:
+          name: Building project
+          command: cabal new-build --enable-tests  --enable-benchmarks -j<< parameters.cabal-threads >>
+
+      - when:
+          name: Running after-build hook steps
+          condition: << parameters.after-build >>
+          steps: << parameters.after-build >>
+
+      - when:
+          condition: << parameters.run-tests >>
+          steps:
+            - run:
+                name: Running unit tests
+                command: cabal new-test -j<< parameters.cabal-threads >>
+
+      - when:
+          name: Running after-test hook steps
+          condition: << parameters.after-test >>
+          steps: << parameters.after-test >>
+
+      - save_cache:
+          key: dist-{{ checksum "./build/ghc-version.txt" }}-{{ checksum "cabal.project" }}
+          paths: [./dist-newstyle]
+
+      - save_cache:
+          key: dist-{{ checksum "./build/ghc-version.txt" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "<< parameters.cabal-file >>" }}
+          paths: [./dist-newstyle]
+
+      - when:
+          condition: << parameters.write-result-workspace >>
+          steps:
+            - copy-bin
+            - persist_to_workspace:
+                root: .
+                paths: [build]
