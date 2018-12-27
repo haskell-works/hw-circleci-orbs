@@ -188,6 +188,9 @@ jobs:
         type: boolean
         default: true
       executor:
+        description: |
+          An executor that contains GHC and cabal-install (supporting new-* commands family.)
+          "ghc-844" and "ghc-863" are provided, but custom executors can be used (see examples).
         type: executor
         default: ghc-844
       write-result-workspace:
