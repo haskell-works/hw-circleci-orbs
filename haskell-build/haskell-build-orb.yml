@@ -72,19 +72,39 @@ examples:
         haskell: haskell-works/haskell-build:1.0.0
 
       workflows:
-        build-my-application:
+        build-my-library:
           jobs:
             - haskell/build:
                 cabal-file: my-library.cabal
                 executor: haskell/ghc-844
                 write-result-workspace: false
 
-
             - haskell/build:
                 cabal-file: my-library.cabal
                 executor: haskell/ghc-863
                 write-result-workspace: false
 
+  life-cycle-hooks:
+    description: |
+      Use custom lifecycle hooks to add project-specific steps to a build process
+
+    usage:
+      version: 2.1
+
+      orbs:
+        haskell: haskell-works/haskell-build:1.0.0
+
+      workflows:
+        build-my-application:
+          jobs:
+            - haskell/build:
+                cabal-file: my-application.cabal
+                before-build:
+                  - run: echo "I run before build"
+                after-build:
+                  - run: echo "I run after build"
+                after-test:
+                  - run: echo "I run after tests"
 
 executors:
   ghc-844:
