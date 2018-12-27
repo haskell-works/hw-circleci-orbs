@@ -5,13 +5,13 @@ description: Builds a Haskell application using cabal new-*.
 examples:
   build-application:
     description: |
-      A typical workflow to build Haskell application.
+      A typical workflow for building Haskell applications.
       It uses the default executor (GHC 8.4.4) to build an app.
     usage:
       version: 2.1
 
       orbs:
-        haskell: haskell-works/haskell-build:1.0.0
+        haskell: haskell-works/haskell-build@1.0.1
 
       workflows:
         build-my-application:
@@ -21,13 +21,13 @@ examples:
 
   use-different-ghc:
     description: |
-      A workflow that uses a different GHC to build.
+      A workflow that uses a different GHC.
       Executors with GHC 8.4.4 (haskell/ghc-844) and GHC 8.6.3 (haskell/ghc-863) are supported out-of-box.
     usage:
       version: 2.1
 
       orbs:
-        haskell: haskell-works/haskell-build:1.0.0
+        haskell: haskell-works/haskell-build@1.0.1
 
       workflows:
         build-my-application:
@@ -51,7 +51,7 @@ examples:
           - image: quay.io/haskell_works/ghc-8.4.4:latest
 
       orbs:
-        haskell: haskell-works/haskell-build:1.0.0
+        haskell: haskell-works/haskell-build@1.0.1
 
       workflows:
         build-my-application:
@@ -69,7 +69,7 @@ examples:
       version: 2.1
 
       orbs:
-        haskell: haskell-works/haskell-build:1.0.0
+        haskell: haskell-works/haskell-build@1.0.1
 
       workflows:
         build-my-library:
@@ -92,7 +92,7 @@ examples:
       version: 2.1
 
       orbs:
-        haskell: haskell-works/haskell-build:1.0.0
+        haskell: haskell-works/haskell-build@1.0.1
 
       workflows:
         build-my-application:
