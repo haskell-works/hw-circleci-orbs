@@ -9,17 +9,11 @@ executors:
     docker:
       - image: circleci/buildpack-deps:latest
 
-release-params: &release-params
+common-params: &common-params
   github-token:
     description: Either enter GitHub token here or set GITHUB_TOKEN env variable.
     type: string
     default: ${GITHUB_TOKEN}
-  tag:
-    description: Git tag using as the version number of the release.
-    type: string
-  title:
-    description: Name of the release.
-    type: string
   before-release:
     description: |
       Optional steps to run before making a release.
@@ -49,10 +43,41 @@ release-params: &release-params
     default: false
 
 commands:
-  create-release:
+  release-cabal:
+    description: Creates a new release using a version from .cabal file
+    parameters:
+      <<: *common-params
+      cabal-file:
+        description: Cabal file name (including the .cabal extension)
+        type: string
+    steps:
+      - run:
+          name: Reading version from << parameters.cabal-file >>
+          command: |
+            TAG_VERSION=$(cat << parameters.cabal-file >> | grep -e "^version" | head -n 1 | tr -s ' ' | cut -d' ' -f2)
+            echo "TAG_VERSION=$TAG_VERSION" >> $BASH_ENV
+            source $BASH_ENV
+            echo "Current version is $TAG_VERSION"
+      - release:
+          github-token: << parameters.github-token >>
+          tag: v$TAG_VERSION
+          title: Release v$TAG_VERSION
+          before-release: << parameters.before-release >>
+          after-release: << parameters.after-release >>
+          artefacts-folder: << parameters.artefacts-folder >>
+          draft: << parameters.draft >>
+          pre-release: << parameters.pre-release >>
+
+  release:
     description: Create a new release.
     parameters:
-      <<: *release-params
+      <<: *common-params
+      tag:
+        description: Git tag using as the version number of the release.
+        type: string
+      title:
+        description: Name of the release.
+        type: string
     steps:
       - setup-ghr
       - check-tag-exists:
@@ -81,6 +106,7 @@ commands:
                 <<# parameters.draft >> --draft <</ parameters.draft >> \
                 <<# parameters.pre-release >> --prerelease <</ parameters.pre-release >> \
                   << parameters.tag >> << parameters.artefacts-folder >>
+              echo "Published version: << parameters.tag >>"
 
       - when:
           condition: << parameters.after-release >>
@@ -139,9 +165,17 @@ commands:
             sudo cp /tmp/ghr_v0.12.0_linux_amd64/ghr /usr/local/bin/
 
 jobs:
-  create-release:
+  release-cabal:
+    description: Creates a new release using a version from .cabal file
     parameters:
-      <<: *release-params
+      <<: *common-params
+      checkout:
+        description: Boolean flag indicating whether to perform checkout or not
+        type: boolean
+        default: false
+      cabal-file:
+        description: Cabal file name (including the .cabal extension)
+        type: string
       executor:
         type: executor
         default: default
@@ -160,11 +194,61 @@ jobs:
     executor: << parameters.executor >>
     steps:
       - when:
+          condition: << parameters.checkout >>
+          steps: [ checkout ]
+      - when:
           condition: << parameters.attach-workspace >>
           steps:
             - attach_workspace:
                 at: << parameters.workspace-root >>
-      - create-release:
+      - release-cabal:
+          github-token: << parameters.github-token >>
+          cabal-file: << parameters.cabal-file >>
+          before-release: << parameters.before-release >>
+          after-release: << parameters.after-release >>
+          artefacts-folder: << parameters.artefacts-folder >>
+          draft: << parameters.draft >>
+          pre-release: << parameters.pre-release >>
+
+  release:
+    parameters:
+      <<: *common-params
+      checkout:
+        description: Boolean flag indicating whether to perform checkout or not
+        type: boolean
+        default: false
+      tag:
+        description: Git tag using as the version number of the release.
+        type: string
+      title:
+        description: Name of the release.
+        type: string
+      executor:
+        type: executor
+        default: default
+      attach-workspace:
+        description: |
+          Boolean for whether or not to attach to an existing workspace.
+          This is normally used if you want to upload artefacts produced by another job to the release.
+        type: boolean
+        default: false
+      workspace-root:
+        description: |
+          Workspace root path that is either an absolute path or a path relative
+          to the working directory. Defaults to '.' (the working directory)
+        type: string
+        default: '.'
+    executor: << parameters.executor >>
+    steps:
+      - when:
+          condition: << parameters.checkout >>
+          steps: [ checkout ]
+      - when:
+          condition: << parameters.attach-workspace >>
+          steps:
+            - attach_workspace:
+                at: << parameters.workspace-root >>
+      - release:
           github-token: << parameters.github-token >>
           tag: << parameters.tag >>
           title: << parameters.title >>
