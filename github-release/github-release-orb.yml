@@ -1,0 +1,175 @@
+version: 2.1
+
+description: |
+  Manages GitHub releases
+  Repository: https://github.com/haskell-works/hw-circle-orbs
+
+executors:
+  default:
+    docker:
+      - image: circleci/buildpack-deps:latest
+
+release-params: &release-params
+  github-token:
+    description: Either enter GitHub token here or set GITHUB_TOKEN env variable.
+    type: string
+    default: ${GITHUB_TOKEN}
+  tag:
+    description: Git tag using as the version number of the release.
+    type: string
+  title:
+    description: Name of the release.
+    type: string
+  before-release:
+    description: |
+      Optional steps to run before making a release.
+      This is normally used for preparing artefacts to upload to the release.
+    type: steps
+    default: []
+  after-release:
+    description: |
+      Optional steps to run after the release is made.
+      Use it for cleanup resources, persisting workspaces if needed, etc.
+    type: steps
+    default: []
+  artefacts-folder:
+    description: |
+      File path to be uploaded.
+      If directory, all files in the directory will be uploaded.
+      If empty, just create a new release without uploading any files.
+    type: string
+    default: "/tmp/artefacts"
+  draft:
+    description: Set true if the release is a draft.
+    type: boolean
+    default: false
+  pre-release:
+    description: Set true if the release is a pre-release.
+    type: boolean
+    default: false
+
+commands:
+  create-release:
+    description: Create a new release.
+    parameters:
+      <<: *release-params
+    steps:
+      - setup-ghr
+      - check-tag-exists:
+          tag: << parameters.tag >>
+
+      - when:
+          condition: << parameters.before-release >>
+          steps: << parameters.before-release >>
+
+      - produce-change-log:
+          github-token: << parameters.github-token >>
+          artefacts-folder: << parameters.artefacts-folder >>
+
+      - run:
+          name: "Publishing a new release with artefacts"
+          command: |
+              changes=`cat << parameters.artefacts-folder >>/changelog.txt`
+              ghr \
+                --token << parameters.github-token >> \
+                --username ${CIRCLE_PROJECT_USERNAME} \
+                --repository ${CIRCLE_PROJECT_REPONAME} \
+                --commitish ${CIRCLE_SHA1} \
+                --name "<< parameters.title >>" \
+                --body "$changes" \
+                --soft \
+                <<# parameters.draft >> --draft <</ parameters.draft >> \
+                <<# parameters.pre-release >> --prerelease <</ parameters.pre-release >> \
+                  << parameters.tag >> << parameters.artefacts-folder >>
+
+      - when:
+          condition: << parameters.after-release >>
+          steps: << parameters.after-release >>
+
+  check-tag-exists:
+    description: Checks if the current tag exists. Sets RELEASE_EXISTS env variable if so.
+    parameters:
+      tag:
+        description: Git tag using as the version number of the release.
+        type: string
+    steps:
+      - run:
+          name: Check if release exists
+          command: |
+            if [[ $(git ls-remote origin "refs/tags/<< parameters.tag >>") ]]; then
+              echo "The tag << parameters.tag >> already exists."
+              echo "export RELEASE_EXISTS=true" >> $BASH_ENV
+              source $BASH_ENV
+            fi
+
+  produce-change-log:
+    description: Produces change log - a list of commits since last release
+    parameters:
+      github-token:
+        description: Either enter GitHub token here or set GITHUB_TOKEN env variable.
+        type: string
+        default: ${GITHUB_TOKEN}
+      artefacts-folder:
+        description: |
+          File path to be uploaded.
+          If directory, all files in the directory will be uploaded.
+          If empty, just create a new release without uploading any files.
+        type: string
+    steps:
+      - run:
+          name: Producing change log
+          command: |
+            mkdir -p << parameters.artefacts-folder >>
+            _api_auth="Authorization: token << parameters.github-token >>"
+            _api_url="https://api.github.com/repos/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}"
+            _latest_release=$(curl -s -H "${_api_auth}" -X GET ${_api_url}/releases/latest | jq -r '.tag_name')
+            if [ "$_latest_release" = "" ]; then _latest_release=${CIRCLE_SHA1}; fi
+            curl -s -H "${_api_auth}" \
+              -X GET ${_api_url}/compare/${_latest_release}...${CIRCLE_SHA1} \
+              | jq -cr '.commits[] | "\(.commit.message) by @\(.author.login)" | gsub("[\n]"; " ")' \
+              >> << parameters.artefacts-folder >>/changelog.txt
+
+  setup-ghr:
+    description: "Downloads GHR tool and puts it to /usr/local/bin"
+    steps:
+      - run:
+          name: Download GitHub Releases tool
+          command: |
+            curl -Ls https://github.com/tcnksm/ghr/releases/download/v0.12.0/ghr_v0.12.0_linux_amd64.tar.gz | tar -xvz -C /tmp/
+            sudo cp /tmp/ghr_v0.12.0_linux_amd64/ghr /usr/local/bin/
+
+jobs:
+  create-release:
+    parameters:
+      <<: *release-params
+      executor:
+        type: executor
+        default: default
+      attach-workspace:
+        description: |
+          Boolean for whether or not to attach to an existing workspace.
+          This is normally used if you want to upload artefacts produced by another job to the release.
+        type: boolean
+        default: false
+      workspace-root:
+        description: |
+          Workspace root path that is either an absolute path or a path relative
+          to the working directory. Defaults to '.' (the working directory)
+        type: string
+        default: '.'
+    executor: << parameters.executor >>
+    steps:
+      - when:
+          condition: << parameters.attach-workspace >>
+          steps:
+            - attach_workspace:
+                at: << parameters.workspace-root >>
+      - create-release:
+          github-token: << parameters.github-token >>
+          tag: << parameters.tag >>
+          title: << parameters.title >>
+          before-release: << parameters.before-release >>
+          after-release: << parameters.after-release >>
+          artefacts-folder: << parameters.artefacts-folder >>
+          draft: << parameters.draft >>
+          pre-release: << parameters.pre-release >>
