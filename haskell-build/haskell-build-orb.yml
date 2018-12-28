@@ -107,22 +107,22 @@ examples:
                   - run: echo "I run after tests"
 
 executors:
-  ghc-7.10.3:
+  ghc-7_10_3:
     docker:
       - image: quay.io/haskell_works/ghc-7.10.3:latest
-  ghc-8.0.2:
+  ghc-8_0_2:
     docker:
       - image: quay.io/haskell_works/ghc-8.0.2:latest
-  ghc-8.2.2:
+  ghc-8_2_2:
     docker:
       - image: quay.io/haskell_works/ghc-8.2.2:latest
-  ghc-8.4.4:
+  ghc-8_4_4:
     docker:
       - image: quay.io/haskell_works/ghc-8.4.4:latest
-  ghc-8.4.3:
+  ghc-8_4_3:
     docker:
       - image: quay.io/haskell_works/ghc-8.4.3:latest
-  ghc-8.6.3:
+  ghc-8_6_3:
     docker:
       - image: quay.io/haskell_works/ghc-8.6.3:latest
   ghc-844:
@@ -208,7 +208,7 @@ jobs:
       executor:
         description: |
           An executor that contains GHC and cabal-install (supporting new-* commands family.)
-          "ghc-8.4.4" and "ghc-8.6.3" are provided, but custom executors can be used (see examples).
+          "ghc-8_4_4" and "ghc-8_6_3" are provided, but custom executors can be used (see examples).
         type: executor
         default: ghc-8.4.4
       write-result-workspace:
