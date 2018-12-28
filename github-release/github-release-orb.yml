@@ -297,7 +297,7 @@ examples:
               name: build-my-app
               cabal-file: my-application.cabal
 
-          - github/release:
+          - github/release-cabal:
               requires: [build-my-app]
               checkout: true
               attach-workspace: true
