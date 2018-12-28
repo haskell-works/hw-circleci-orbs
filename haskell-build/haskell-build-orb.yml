@@ -106,7 +106,7 @@ jobs:
           An executor that contains GHC and cabal-install (supporting new-* commands family.)
           "ghc-8_4_4" and "ghc-8_6_3" are provided, but custom executors can be used (see examples).
         type: executor
-        default: ghc-8.4.4
+        default: ghc-8_4_4
       write-result-workspace:
         description: Boolean for whether or not to persist results to a workspace.
         type: boolean
