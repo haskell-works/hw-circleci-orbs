@@ -49,7 +49,7 @@ release-params: &release-params
     default: false
 
 commands:
-  create:
+  create-release:
     description: Create a new release.
     parameters:
       <<: *release-params
@@ -139,7 +139,7 @@ commands:
             sudo cp /tmp/ghr_v0.12.0_linux_amd64/ghr /usr/local/bin/
 
 jobs:
-  create:
+  create-release:
     parameters:
       <<: *release-params
       executor:
@@ -164,7 +164,7 @@ jobs:
           steps:
             - attach_workspace:
                 at: << parameters.workspace-root >>
-      - create:
+      - create-release:
           github-token: << parameters.github-token >>
           tag: << parameters.tag >>
           title: << parameters.title >>
