@@ -83,13 +83,13 @@ commands:
       - check-tag-exists:
           tag: << parameters.tag >>
 
-      - when:
-          condition: << parameters.before-release >>
-          steps: << parameters.before-release >>
-
       - produce-change-log:
           github-token: << parameters.github-token >>
           artefacts-folder: << parameters.artefacts-folder >>
+
+      - when:
+          condition: << parameters.before-release >>
+          steps: << parameters.before-release >>
 
       - run:
           name: "Publishing a new release with artefacts"
@@ -146,14 +146,16 @@ commands:
           name: Producing change log
           command: |
             mkdir -p << parameters.artefacts-folder >>
+            _changelog_file="<< parameters.artefacts-folder >>/changelog.txt"
+            echo $'Changes\n--------\n' > ${_changelog_file}
             _api_auth="Authorization: token << parameters.github-token >>"
             _api_url="https://api.github.com/repos/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}"
-            _latest_release=$(curl -s -H "${_api_auth}" -X GET ${_api_url}/releases/latest | jq -r '.tag_name')
+            _latest_release=$(curl -s -H "${_api_auth}" -X GET ${_api_url}/releases/latest | jq -r '.tag_name // ""')
             if [ "$_latest_release" = "" ]; then _latest_release=${CIRCLE_SHA1}; fi
             curl -s -H "${_api_auth}" \
               -X GET ${_api_url}/compare/${_latest_release}...${CIRCLE_SHA1} \
-              | jq -cr '.commits[] | "\(.commit.message) by @\(.author.login)" | gsub("[\n]"; " ")' \
-              >> << parameters.artefacts-folder >>/changelog.txt
+              | jq -cr '.commits[] | "- \(.commit.message) by @\(.author.login)" | gsub("[\n]"; " ")' \
+              >> ${_changelog_file}
 
   setup-ghr:
     description: "Downloads GHR tool and puts it to /usr/local/bin"
@@ -257,3 +259,88 @@ jobs:
           artefacts-folder: << parameters.artefacts-folder >>
           draft: << parameters.draft >>
           pre-release: << parameters.pre-release >>
+
+examples:
+  basic-release:
+    description: |
+      Basic release scenario.
+      In this example every push to master will produce a release.
+    usage:
+      version: 2.1
+
+      orbs:
+        github: haskell-works/github-release@1.0.0 # use latest version
+
+      workflow:
+        release-my-application:
+          jobs:
+            - github/release:
+                tag: v$CIRCLE_BUILD_NUM
+                title: Release v$CIRCLE_BUILD_NUM
+                filters:
+                  branches:
+                    only: master
+
+  release-cabal-version:
+    description: |
+      Releasing after building an application with haskell-works/haskell-build.
+    usage:
+      version: 2.1
+
+      orbs:
+        haskell: haskell-works/haskell-build@1.0.0 # use latest version
+        github: haskell-works/github-release@1.0.0 # use latest version
+
+      workflow:
+        jobs:
+          - haskell/build:
+              name: build-my-app
+              cabal-file: my-application.cabal
+
+          - github/release:
+              requires: [build-my-app]
+              checkout: true
+              attach-workspace: true
+              cabal-file: my-application.cabal
+              artefacts-folder: ./build
+              filters:
+                branches:
+                  only: master
+
+
+  life-cycle-hooks:
+    description: |
+      Releasing after building an application with haskell-works/haskell-build.
+      This variant does not check out code and uses the workspace produced by the build.
+      "before-release" hook is used to prepare artefacts to uploading.
+    usage:
+      version: 2.1
+
+      orbs:
+        haskell: haskell-works/haskell-build@1.0.0 # use latest version
+        github: haskell-works/github-release@1.0.0 # use latest version
+
+      workflow:
+        - haskell/build:
+            name: build-my-app
+            cabal-file: my-application.cabal
+
+        - github/release:
+            requires: [build-my-app]
+            attach-workspace: true
+            filters:
+              branches:
+                only: master
+
+        - before-release:
+            - run:
+                name: Prepare environment for release
+                command: |
+                  cat ./build/project.env >> $BASH_ENV
+                  source $BASH_ENV
+                  tar zcvf ./tmp/artefacts/${BUILD_PROJECT_NAME}_${BUILD_ARCH}_${BUILD_OS_NAME}.tar.gz ./build
+
+          artefacts-folder: ./tmp/artefacts
+          tag: v${BUILD_PROJECT_VERSION}
+          title: Release v${BUILD_PROJECT_VERSION}
+
