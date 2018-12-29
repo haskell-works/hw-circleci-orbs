@@ -2,110 +2,6 @@ version: 2.1
 
 description: Builds a Haskell application using cabal new-*.
 
-examples:
-  build-application:
-    description: |
-      A typical workflow for building Haskell applications.
-      It uses the default executor (GHC 8.4.4) to build an app.
-    usage:
-      version: 2.1
-
-      orbs:
-        haskell: haskell-works/haskell-build@1.0.1
-
-      workflows:
-        build-my-application:
-          jobs:
-            - haskell/build:
-                cabal-file: my-application.cabal
-
-  use-different-ghc:
-    description: |
-      A workflow that uses a different GHC.
-      Executors with GHC 8.4.4 (haskell/ghc-844) and GHC 8.6.3 (haskell/ghc-863) are supported out-of-box.
-    usage:
-      version: 2.1
-
-      orbs:
-        haskell: haskell-works/haskell-build@1.0.1
-
-      workflows:
-        build-my-application:
-          jobs:
-            - haskell/build:
-                cabal-file: my-application.cabal
-                executor: haskell/ghc-863
-
-  use-custom-executor:
-    description: |
-      Sometimes using a custom executor (an image with GHC) is benefitial.
-      For example if building code requires some extra native libraries/packages
-      to be installed, or simply if it is more convenient to have full control
-      over a build environment.
-
-    usage:
-      version: 2.1
-
-      my-custom-haskell-executor:
-        docker:
-          - image: quay.io/haskell_works/ghc-8.4.4:latest
-
-      orbs:
-        haskell: haskell-works/haskell-build@1.0.1
-
-      workflows:
-        build-my-application:
-          jobs:
-            - haskell/build:
-                cabal-file: my-application.cabal
-                executor: my-custom-haskell-executor
-
-  build-library:
-    description: |
-      Building a library often requires building and testing it with multiple versions of GHC.
-      It also does not require producing binaries, so in this example we disable writing a workspace.
-
-    usage:
-      version: 2.1
-
-      orbs:
-        haskell: haskell-works/haskell-build@1.0.1
-
-      workflows:
-        build-my-library:
-          jobs:
-            - haskell/build:
-                cabal-file: my-library.cabal
-                executor: haskell/ghc-844
-                write-result-workspace: false
-
-            - haskell/build:
-                cabal-file: my-library.cabal
-                executor: haskell/ghc-863
-                write-result-workspace: false
-
-  life-cycle-hooks:
-    description: |
-      Use custom lifecycle hooks to add project-specific steps to a build process
-
-    usage:
-      version: 2.1
-
-      orbs:
-        haskell: haskell-works/haskell-build@1.0.1
-
-      workflows:
-        build-my-application:
-          jobs:
-            - haskell/build:
-                cabal-file: my-application.cabal
-                before-build:
-                  - run: echo "I run before build"
-                after-build:
-                  - run: echo "I run after build"
-                after-test:
-                  - run: echo "I run after tests"
-
 executors:
   ghc-7_10_3:
     docker:
@@ -210,7 +106,7 @@ jobs:
           An executor that contains GHC and cabal-install (supporting new-* commands family.)
           "ghc-8_4_4" and "ghc-8_6_3" are provided, but custom executors can be used (see examples).
         type: executor
-        default: ghc-8.4.4
+        default: ghc-8_4_4
       write-result-workspace:
         description: Boolean for whether or not to persist results to a workspace.
         type: boolean
@@ -299,3 +195,108 @@ jobs:
             - persist_to_workspace:
                 root: .
                 paths: [build]
+
+examples:
+  build-application:
+    description: |
+      A typical workflow for building Haskell applications.
+      It uses the default executor (GHC 8.4.4) to build an app.
+    usage:
+      version: 2.1
+
+      orbs:
+        haskell: haskell-works/haskell-build@1.0.1
+
+      workflows:
+        build-my-application:
+          jobs:
+            - haskell/build:
+                cabal-file: my-application.cabal
+
+  use-different-ghc:
+    description: |
+      A workflow that uses a different GHC.
+      Executors for most common GHC versions are supported out-of-box
+      (ghc-7_10_3, ghc-8_0_2, ghc-8_2_2, ghc-8_4_4, ghc-8_4_3, ghc-8_6_3)
+    usage:
+      version: 2.1
+
+      orbs:
+        haskell: haskell-works/haskell-build@1.0.0 # use latest version
+
+      workflows:
+        build-my-application:
+          jobs:
+            - haskell/build:
+                cabal-file: my-application.cabal
+                executor: haskell/ghc-8_6_3
+
+  use-custom-executor:
+    description: |
+      Sometimes using a custom executor (an image with GHC) is benefitial.
+      For example if building code requires some extra native libraries/packages
+      to be installed, or simply if it is more convenient to have full control
+      over a build environment.
+
+    usage:
+      version: 2.1
+
+      my-custom-haskell-executor:
+        docker:
+          - image: quay.io/haskell_works/ghc-8.4.4:latest
+
+      orbs:
+        haskell: haskell-works/haskell-build@1.0.0 # use latest version
+
+      workflows:
+        build-my-application:
+          jobs:
+            - haskell/build:
+                cabal-file: my-application.cabal
+                executor: my-custom-haskell-executor
+
+  build-library:
+    description: |
+      Building a library often requires building and testing it with multiple versions of GHC.
+      It also does not require producing binaries, so in this example we disable writing a workspace.
+
+    usage:
+      version: 2.1
+
+      orbs:
+        haskell: haskell-works/haskell-build@1.0.0 # use latest version
+
+      workflows:
+        build-my-library:
+          jobs:
+            - haskell/build:
+                cabal-file: my-library.cabal
+                executor: haskell/ghc-8_4_4
+                write-result-workspace: false
+
+            - haskell/build:
+                cabal-file: my-library.cabal
+                executor: haskell/ghc-8_6_3
+                write-result-workspace: false
+
+  life-cycle-hooks:
+    description: |
+      Use custom lifecycle hooks to add project-specific steps to a build process
+
+    usage:
+      version: 2.1
+
+      orbs:
+        haskell: haskell-works/haskell-build@1.0.0 # use latest version
+
+      workflows:
+        build-my-application:
+          jobs:
+            - haskell/build:
+                cabal-file: my-application.cabal
+                before-build:
+                  - run: echo "I run before build"
+                after-build:
+                  - run: echo "I run after build"
+                after-test:
+                  - run: echo "I run after tests"

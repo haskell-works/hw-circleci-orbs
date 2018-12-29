@@ -9,17 +9,11 @@ executors:
     docker:
       - image: circleci/buildpack-deps:latest
 
-release-params: &release-params
+common-params: &common-params
   github-token:
     description: Either enter GitHub token here or set GITHUB_TOKEN env variable.
     type: string
     default: ${GITHUB_TOKEN}
-  tag:
-    description: Git tag using as the version number of the release.
-    type: string
-  title:
-    description: Name of the release.
-    type: string
   before-release:
     description: |
       Optional steps to run before making a release.
@@ -49,22 +43,53 @@ release-params: &release-params
     default: false
 
 commands:
-  create-release:
+  release-cabal:
+    description: Creates a new release using a version from .cabal file
+    parameters:
+      <<: *common-params
+      cabal-file:
+        description: Cabal file name (including the .cabal extension)
+        type: string
+    steps:
+      - run:
+          name: Reading version from << parameters.cabal-file >>
+          command: |
+            TAG_VERSION=$(cat << parameters.cabal-file >> | grep -e "^version" | head -n 1 | tr -s ' ' | cut -d' ' -f2)
+            echo "TAG_VERSION=$TAG_VERSION" >> $BASH_ENV
+            source $BASH_ENV
+            echo "Current version is $TAG_VERSION"
+      - release:
+          github-token: << parameters.github-token >>
+          tag: v$TAG_VERSION
+          title: Release v$TAG_VERSION
+          before-release: << parameters.before-release >>
+          after-release: << parameters.after-release >>
+          artefacts-folder: << parameters.artefacts-folder >>
+          draft: << parameters.draft >>
+          pre-release: << parameters.pre-release >>
+
+  release:
     description: Create a new release.
     parameters:
-      <<: *release-params
+      <<: *common-params
+      tag:
+        description: Git tag using as the version number of the release.
+        type: string
+      title:
+        description: Name of the release.
+        type: string
     steps:
       - setup-ghr
       - check-tag-exists:
           tag: << parameters.tag >>
 
-      - when:
-          condition: << parameters.before-release >>
-          steps: << parameters.before-release >>
-
       - produce-change-log:
           github-token: << parameters.github-token >>
           artefacts-folder: << parameters.artefacts-folder >>
+
+      - when:
+          condition: << parameters.before-release >>
+          steps: << parameters.before-release >>
 
       - run:
           name: "Publishing a new release with artefacts"
@@ -81,6 +106,7 @@ commands:
                 <<# parameters.draft >> --draft <</ parameters.draft >> \
                 <<# parameters.pre-release >> --prerelease <</ parameters.pre-release >> \
                   << parameters.tag >> << parameters.artefacts-folder >>
+              echo "Published version: << parameters.tag >>"
 
       - when:
           condition: << parameters.after-release >>
@@ -120,14 +146,16 @@ commands:
           name: Producing change log
           command: |
             mkdir -p << parameters.artefacts-folder >>
+            _changelog_file="<< parameters.artefacts-folder >>/changelog.txt"
+            echo $'Changes\n--------\n' > ${_changelog_file}
             _api_auth="Authorization: token << parameters.github-token >>"
             _api_url="https://api.github.com/repos/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}"
-            _latest_release=$(curl -s -H "${_api_auth}" -X GET ${_api_url}/releases/latest | jq -r '.tag_name')
+            _latest_release=$(curl -s -H "${_api_auth}" -X GET ${_api_url}/releases/latest | jq -r '.tag_name // ""')
             if [ "$_latest_release" = "" ]; then _latest_release=${CIRCLE_SHA1}; fi
             curl -s -H "${_api_auth}" \
               -X GET ${_api_url}/compare/${_latest_release}...${CIRCLE_SHA1} \
-              | jq -cr '.commits[] | "\(.commit.message) by @\(.author.login)" | gsub("[\n]"; " ")' \
-              >> << parameters.artefacts-folder >>/changelog.txt
+              | jq -cr '.commits[] | "- \(.commit.message) by @\(.author.login)" | gsub("[\n]"; " ")' \
+              >> ${_changelog_file}
 
   setup-ghr:
     description: "Downloads GHR tool and puts it to /usr/local/bin"
@@ -139,9 +167,17 @@ commands:
             sudo cp /tmp/ghr_v0.12.0_linux_amd64/ghr /usr/local/bin/
 
 jobs:
-  create-release:
+  release-cabal:
+    description: Creates a new release using a version from .cabal file
     parameters:
-      <<: *release-params
+      <<: *common-params
+      checkout:
+        description: Boolean flag indicating whether to perform checkout or not
+        type: boolean
+        default: false
+      cabal-file:
+        description: Cabal file name (including the .cabal extension)
+        type: string
       executor:
         type: executor
         default: default
@@ -160,11 +196,61 @@ jobs:
     executor: << parameters.executor >>
     steps:
       - when:
+          condition: << parameters.checkout >>
+          steps: [ checkout ]
+      - when:
           condition: << parameters.attach-workspace >>
           steps:
             - attach_workspace:
                 at: << parameters.workspace-root >>
-      - create-release:
+      - release-cabal:
+          github-token: << parameters.github-token >>
+          cabal-file: << parameters.cabal-file >>
+          before-release: << parameters.before-release >>
+          after-release: << parameters.after-release >>
+          artefacts-folder: << parameters.artefacts-folder >>
+          draft: << parameters.draft >>
+          pre-release: << parameters.pre-release >>
+
+  release:
+    parameters:
+      <<: *common-params
+      checkout:
+        description: Boolean flag indicating whether to perform checkout or not
+        type: boolean
+        default: false
+      tag:
+        description: Git tag using as the version number of the release.
+        type: string
+      title:
+        description: Name of the release.
+        type: string
+      executor:
+        type: executor
+        default: default
+      attach-workspace:
+        description: |
+          Boolean for whether or not to attach to an existing workspace.
+          This is normally used if you want to upload artefacts produced by another job to the release.
+        type: boolean
+        default: false
+      workspace-root:
+        description: |
+          Workspace root path that is either an absolute path or a path relative
+          to the working directory. Defaults to '.' (the working directory)
+        type: string
+        default: '.'
+    executor: << parameters.executor >>
+    steps:
+      - when:
+          condition: << parameters.checkout >>
+          steps: [ checkout ]
+      - when:
+          condition: << parameters.attach-workspace >>
+          steps:
+            - attach_workspace:
+                at: << parameters.workspace-root >>
+      - release:
           github-token: << parameters.github-token >>
           tag: << parameters.tag >>
           title: << parameters.title >>
@@ -173,3 +259,88 @@ jobs:
           artefacts-folder: << parameters.artefacts-folder >>
           draft: << parameters.draft >>
           pre-release: << parameters.pre-release >>
+
+examples:
+  basic-release:
+    description: |
+      Basic release scenario.
+      In this example every push to master will produce a release.
+    usage:
+      version: 2.1
+
+      orbs:
+        github: haskell-works/github-release@1.0.0 # use latest version
+
+      workflow:
+        release-my-application:
+          jobs:
+            - github/release:
+                tag: v$CIRCLE_BUILD_NUM
+                title: Release v$CIRCLE_BUILD_NUM
+                filters:
+                  branches:
+                    only: master
+
+  release-cabal-version:
+    description: |
+      Releasing after building an application with haskell-works/haskell-build.
+    usage:
+      version: 2.1
+
+      orbs:
+        haskell: haskell-works/haskell-build@1.0.0 # use latest version
+        github: haskell-works/github-release@1.0.0 # use latest version
+
+      workflow:
+        jobs:
+          - haskell/build:
+              name: build-my-app
+              cabal-file: my-application.cabal
+
+          - github/release-cabal:
+              requires: [build-my-app]
+              checkout: true
+              attach-workspace: true
+              cabal-file: my-application.cabal
+              artefacts-folder: ./build
+              filters:
+                branches:
+                  only: master
+
+
+  life-cycle-hooks:
+    description: |
+      Releasing after building an application with haskell-works/haskell-build.
+      This variant does not check out code and uses the workspace produced by the build.
+      "before-release" hook is used to prepare artefacts to uploading.
+    usage:
+      version: 2.1
+
+      orbs:
+        haskell: haskell-works/haskell-build@1.0.0 # use latest version
+        github: haskell-works/github-release@1.0.0 # use latest version
+
+      workflow:
+        - haskell/build:
+            name: build-my-app
+            cabal-file: my-application.cabal
+
+        - github/release:
+            requires: [build-my-app]
+            attach-workspace: true
+            filters:
+              branches:
+                only: master
+
+        - before-release:
+            - run:
+                name: Prepare environment for release
+                command: |
+                  cat ./build/project.env >> $BASH_ENV
+                  source $BASH_ENV
+                  tar zcvf ./tmp/artefacts/${BUILD_PROJECT_NAME}_${BUILD_ARCH}_${BUILD_OS_NAME}.tar.gz ./build
+
+          artefacts-folder: ./tmp/artefacts
+          tag: v${BUILD_PROJECT_VERSION}
+          title: Release v${BUILD_PROJECT_VERSION}
+
