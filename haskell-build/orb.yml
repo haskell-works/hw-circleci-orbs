@@ -35,38 +35,47 @@ commands:
           name: Override GHC version
           command: |
             test -f cabal.project || echo 'packages: .' > cabal.project
+            test -f cabal.project.freeze || touch cabal.project.freeze
             _ghc_ver=$(ghc --numeric-version)
             sed -i '/^with-compiler:/{h;s/:.*/: ghc-'"$_ghc_ver"'/};${x;/^$/{s//with-compiler: ghc-'"$_ghc_ver"'/;H};x}' cabal.project
 
   set-project-env:
+    parameters:
+      cache-version:
+        description: Cache version. Update this value when you want to start with new build caches.
+        type: string
     steps:
       - run:
           name: Setting project environment
           command: |
             mkdir -p ./build
             BUILD_DIST="./dist-newstyle/build"
-            BUILD_CABAL_VER=$(cabal --numeric-version)
-            BUILD_GHC_VER=$(cat cabal.project | grep 'with-compiler:' | head -n 1 | tr -s ' ' | cut -d' ' -f2 | cut -d'-' -f2)
-            if [ "$BUILD_GHC_VER" = "" ]; then BUILD_GHC_VER=$(ghc -- --numeric-version); fi
-            BUILD_PROJECT_NAME=$(cat *.cabal | grep '^name:' | head -n 1 | cut -d : -f 2 | xargs)
+            BUILD_CABAL_VERSION=$(cabal --numeric-version)
+            BUILD_GHC_VERSION=$(cat cabal.project | grep 'with-compiler:' | head -n 1 | tr -s ' ' | cut -d' ' -f2 | cut -d'-' -f2)
+            if [ "$BUILD_GHC_VERSION" = "" ]; then BUILD_GHC_VERSION=$(ghc -- --numeric-version); fi
+            BUILD_PROJECT_NAME=$(cat *.cabal | grep '^name:' | head -n 1 | cut -d':' -f 2 | xargs)
             BUILD_PROJECT_VERSION=$(cat *.cabal | grep -e "^version" | head -n 1 | tr -s " " | cut -d' ' -f2)
-            BUILD_EXE_NAME=$(cat *.cabal | grep 'executable ' | head -n 1 | tr -s ' ' | cut -d' ' -f2)
+            BUILD_EXE_NAME=$(cat *.cabal | grep 'executable ' | head -n 1 | tr -s ' ' | cut -d' ' -f2 || echo '')
             BUILD_ARCH=$(uname -m)
             BUILD_OS_NAME=$(uname -s | tr '[:upper:]' '[:lower:]')
             BUILD_OS_SUFFIX=$BUILD_OS_NAME
             if [ "$BUILD_OS_SUFFIX" = "darwin" ]; then BUILD_OS_SUFFIX="osx"; fi
 
-            echo "$BUILD_GHC_VER" > ./build/ghc-version.txt
+            echo "$BUILD_GHC_VERSION" > ./build/ghc.version
 
-            echo "export BUILD_CABAL_VER=$BUILD_CABAL_VER"              > ./build/project.env
-            echo "export BUILD_GHC_VER=$BUILD_GHC_VER"                 >> ./build/project.env
+            echo "CACHE_VERSION=<< parameters.cache-version >>"         > ./build/build.env
+            echo "BUILD_GHC_VERSION=$BUILD_GHC_VERSION"                >> ./build/build.env
+            echo "BUILD_ARCH=$BUILD_ARCH"                              >> ./build/build.env
+            echo "BUILD_OS_NAME=$BUILD_OS_NAME"                        >> ./build/build.env
+
+            echo "export BUILD_CABAL_VERSION=$BUILD_CABAL_VERSION"      > ./build/project.env
+            echo "export BUILD_GHC_VERSION=$BUILD_GHC_VERSION"         >> ./build/project.env
             echo "export BUILD_ARCH=$BUILD_ARCH"                       >> ./build/project.env
             echo "export BUILD_OS_NAME=$BUILD_OS_NAME"                 >> ./build/project.env
             echo "export BUILD_OS_SUFFIX=$BUILD_OS_SUFFIX"             >> ./build/project.env
             echo "export BUILD_PROJECT_NAME=$BUILD_PROJECT_NAME"       >> ./build/project.env
             echo "export BUILD_PROJECT_VERSION=$BUILD_PROJECT_VERSION" >> ./build/project.env
             echo "export BUILD_EXE_NAME=$BUILD_EXE_NAME"               >> ./build/project.env
-
 
             cat ./build/project.env >> $BASH_ENV
             cat $BASH_ENV
@@ -79,7 +88,7 @@ commands:
           command: |
             _os_suffix=$OS_NAME
             if [ "$_os_suffix" = "darwin" ]; then _os_suffix="osx"; fi
-            _bin_path="./dist-newstyle/build/$BUILD_ARCH-$BUILD_OS_NAME/ghc-$BUILD_GHC_VER/$BUILD_PROJECT_NAME-$BUILD_PROJECT_VERSION/x/$BUILD_EXE_NAME/build/$BUILD_EXE_NAME/$BUILD_EXE_NAME"
+            _bin_path="./dist-newstyle/build/$BUILD_ARCH-$BUILD_OS_NAME/ghc-$BUILD_GHC_VERSION/$BUILD_PROJECT_NAME-$BUILD_PROJECT_VERSION/x/$BUILD_EXE_NAME/build/$BUILD_EXE_NAME/$BUILD_EXE_NAME"
             echo "Exe path: $_bin_path"
             if [ -f "$_bin_path" ]; then
               mkdir -p ./build/dist
@@ -90,6 +99,16 @@ commands:
 jobs:
   build:
     parameters:
+      executor:
+        description: |
+          An executor that contains GHC and cabal-install (supporting new-* commands family.)
+          "ghc-8_4_4" and "ghc-8_6_3" are provided, but custom executors can be used (see examples).
+        type: executor
+        default: ghc-8_4_4
+      cache-version:
+        description: Cache version. Update this value when you want to start with new build caches.
+        type: string
+        default: cache-1
       cabal-threads:
         description: Number of Cabal threads.
         type: integer
@@ -101,12 +120,6 @@ jobs:
         description: Boolean for whether or not to run unit tests
         type: boolean
         default: true
-      executor:
-        description: |
-          An executor that contains GHC and cabal-install (supporting new-* commands family.)
-          "ghc-8_4_4" and "ghc-8_6_3" are provided, but custom executors can be used (see examples).
-        type: executor
-        default: ghc-8_4_4
       write-result-workspace:
         description: Boolean for whether or not to persist results to a workspace.
         type: boolean
@@ -129,18 +142,19 @@ jobs:
       - checkout
       - run: git fetch --unshallow || true
       - override-ghc
-      - set-project-env
+      - set-project-env:
+          cache-version: << parameters.cache-version >>
 
       - restore_cache:
           keys:
-            - dot-cabal-{{ checksum "./build/ghc-version.txt" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "<< parameters.cabal-file >>" }}
-            - dot-cabal-{{ checksum "./build/ghc-version.txt" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}
-            - dot-cabal-{{ checksum "./build/ghc-version.txt" }}
+            - dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "<< parameters.cabal-file >>" }}
+            - dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}
+            - dot-cabal-{{ checksum "./build/build.env" }}
 
       - restore_cache:
           keys:
-            - dist-{{ checksum "./build/ghc-version.txt" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "<< parameters.cabal-file >>" }}
-            - dist-{{ checksum "./build/ghc-version.txt" }}-{{ checksum "cabal.project" }}
+            - dist-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "<< parameters.cabal-file >>" }}
+            - dist-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}
 
       - run: cabal new-update -j<< parameters.cabal-threads >>
 
@@ -149,19 +163,19 @@ jobs:
           condition: << parameters.before-build >>
           steps: << parameters.before-build >>
 
-      - run: cabal new-build --enable-tests --dependencies-only -j<< parameters.cabal-threads >>
+      - run: cabal new-build --enable-tests --disable-benchmarks --dependencies-only -j<< parameters.cabal-threads >>
 
       - save_cache:
-          key: dot-cabal-{{ checksum "./build/ghc-version.txt" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}
+          key: dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}
           paths: [~/.cabal/packages, ~/.cabal/store]
 
       - save_cache:
-          key: dot-cabal-{{ checksum "./build/ghc-version.txt" }}
+          key: dot-cabal-{{ checksum "./build/build.env" }}
           paths: [~/.cabal/packages, ~/.cabal/store]
 
       - run:
           name: Building project
-          command: cabal new-build --enable-tests  --enable-benchmarks -j<< parameters.cabal-threads >>
+          command: cabal new-build --enable-tests -j<< parameters.cabal-threads >>
 
       - when:
           name: Running after-build hook steps
@@ -181,12 +195,16 @@ jobs:
           steps: << parameters.after-test >>
 
       - save_cache:
-          key: dist-{{ checksum "./build/ghc-version.txt" }}-{{ checksum "cabal.project" }}
+          key: dist-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}
           paths: [./dist-newstyle]
 
       - save_cache:
-          key: dist-{{ checksum "./build/ghc-version.txt" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "<< parameters.cabal-file >>" }}
+          key: dist-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "<< parameters.cabal-file >>" }}
           paths: [./dist-newstyle]
+
+      - save_cache:
+          key: dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "<< parameters.cabal-file >>" }}
+          paths: [~/.cabal/packages, ~/.cabal/store]
 
       - when:
           condition: << parameters.write-result-workspace >>
