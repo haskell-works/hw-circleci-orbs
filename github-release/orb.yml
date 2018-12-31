@@ -50,14 +50,44 @@ commands:
       cabal-file:
         description: Cabal file name (including the .cabal extension)
         type: string
+        default: ""
     steps:
+      - when:
+          condition: << parameters.cabal-file >>
+          steps:
+            - run:
+                name: "Validating provided cabal file"
+                command: |
+                  if [ ! -f "<< parameters.cabal-file >>" ]; then
+                    echo "Cabal file was specified, but doesn't exist << parameters.cabal-file >>"
+                    BUILD_CABAL_FILE=<< parameters.cabal-file >>
+                    exit 1
+                  fi
+                  echo "export BUILD_CABAL_FILE=$BUILD_CABAL_FILE" >> $BASH_ENV
+                  source $BASH_ENV
+      - unless:
+          condition: << parameters.cabal-file >>
+          steps:
+            - run:
+                name: Searching for Cabal file to build
+                command: |
+                  BUILD_CABAL_FILE=$((ls ${CIRCLE_PROJECT_REPONAME}.cabal || ls *.cabal) | head -n 1)
+                  ## What to do with multiple cabal packages?
+                  # BUILD_CABAL_FILE=$((ls ${CIRCLE_PROJECT_REPONAME}.cabal || ls *.cabal || find . -type f -name '*.cabal') | head -n 1)
+                  if [ "$BUILD_CABAL_FILE" = "" ]; then
+                    echo "Could not find .cabal file"
+                    exit 1
+                  fi
+                  echo "Found $BUILD_CABAL_FILE, using it"
+                  echo "export BUILD_CABAL_FILE=$BUILD_CABAL_FILE" >> $BASH_ENV
+                  source $BASH_ENV
       - run:
-          name: Reading version from << parameters.cabal-file >>
+          name: Reading version from cabal file
           command: |
-            TAG_VERSION=$(cat << parameters.cabal-file >> | grep -e "^version" | head -n 1 | tr -s ' ' | cut -d' ' -f2)
+            TAG_VERSION=$(cat $BUILD_CABAL_FILE | grep -e "^version" | head -n 1 | tr -s ' ' | cut -d' ' -f2)
+            echo "Current version is $TAG_VERSION"
             echo "TAG_VERSION=$TAG_VERSION" >> $BASH_ENV
             source $BASH_ENV
-            echo "Current version is $TAG_VERSION"
       - release:
           github-token: << parameters.github-token >>
           tag: v$TAG_VERSION
@@ -178,6 +208,7 @@ jobs:
       cabal-file:
         description: Cabal file name (including the .cabal extension)
         type: string
+        default: ""
       executor:
         type: executor
         default: default
