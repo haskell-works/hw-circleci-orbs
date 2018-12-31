@@ -1,0 +1,102 @@
+version: 2.1
+
+description: Automates releases to Hackage
+
+executors:
+  default:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.4.4:latest
+
+commands:
+  upload:
+    description: Uploads package to Hackage
+    parameters:
+      username:
+        description: Hackage username
+        type: string
+      password:
+        description: Hackage password
+        type: string
+      publish:
+        description: Publish the release. Without this flag a candidate will be created.
+        type: boolean
+        default: false
+    steps:
+      - prepare-release
+      - run:
+          name: Publishing on Hackage
+          command: |
+            HACKAGE_STATUS=$(curl --silent --head -w %{http_code} -XGET http://hackage.haskell.org/package/$PACKAGE_NAME -o /dev/null)
+            if [ "$HACKAGE_STATUS" = "404" ]; then
+              cabal upload \
+                --username "<< parameters.username >>" \
+                --password "<< parameters.password >>" \
+                <<# parameters.publish >> --publish <</ parameters.publish >> \
+                $PACKAGE_TARBALL
+              echo "Published $PACKAGE_NAME"
+            else
+              echo "Package $PACKAGE_NAME" already exists on Hackage.
+            fi
+
+  prepare-release:
+    description:
+      Prepares a release. Creates a tarball, checks if the release is needed,
+      and sets PACKAGE_TARBALL and PACKAGE_NAME env variables.
+    steps:
+      - run:
+          name: Checking if the package is ready for distribution
+          command: cabal check
+      - run:
+          name: Preparing the release
+          command: |
+              mkdir -p ./build/sdist && rm -rf ./build/sdist/*
+              cabal new-sdist -o ./build/sdist
+              PACKAGE_TARBALL=$(ls $PWD/build/sdist/*.tar.gz | head -n 1)
+              if [ ! -f "$PACKAGE_TARBALL" ]; then
+                echo "Unable to create tarball"
+                exit 1
+              fi
+              PACKAGE_NAME=$(basename ${PACKAGE_TARBALL%.*.*})
+
+              echo "export PACKAGE_TARBALL=$PACKAGE_TARBALL" >> $BASH_ENV
+              echo "export PACKAGE_NAME=$PACKAGE_NAME"       >> $BASH_ENV
+              source $BASH_ENV
+
+jobs:
+  upload:
+    description: Uploads package to Hackage
+    parameters:
+      executor:
+        type: executor
+        default: default
+      username:
+        description: Hackage username
+        type: string
+      password:
+        description: Hackage password
+        type: string
+      publish:
+        description: Publish the release. Without this flag a candidate will be created.
+        type: boolean
+        default: false
+      after-checkout:
+        description: Optional steps to execute after checking out code
+        type: steps
+        default: []
+      after-upload:
+        description: Optional steps to execute after uploading is done
+        type: steps
+        default: []
+    executor: << parameters.executor >>
+    steps:
+      - checkout
+      - when:
+          condition: << parameters.after-checkout >>
+          steps: << parameters.after-checkout >>
+      - upload:
+          username: << parameters.username >>
+          password: << parameters.password >>
+          publish: << parameters.publish >>
+      - when:
+          condidion: << parameters.after-upload >>
+          steps: << parameters.after-upload >>

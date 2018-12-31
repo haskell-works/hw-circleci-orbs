@@ -120,6 +120,10 @@ jobs:
         description: Boolean for whether or not to run unit tests
         type: boolean
         default: true
+      run-check:
+        description: Boolean for whether or not to check if the package is ready for distribution
+        type: boolean
+        default: false
       write-result-workspace:
         description: Boolean for whether or not to persist results to a workspace.
         type: boolean
@@ -205,6 +209,13 @@ jobs:
       - save_cache:
           key: dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "<< parameters.cabal-file >>" }}
           paths: [~/.cabal/packages, ~/.cabal/store]
+
+      - when:
+          condition: << parameters.run-check >>
+          steps:
+            - run:
+                name: Checking if the package is ready for distribution
+                command: cabal check
 
       - when:
           condition: << parameters.write-result-workspace >>
