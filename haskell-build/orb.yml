@@ -57,9 +57,9 @@ commands:
                 command: |
                   if [ ! -f "<< parameters.cabal-file >>" ]; then
                     echo "Cabal file was specified, but doesn't exist << parameters.cabal-file >>"
-                    BUILD_CABAL_FILE=<< parameters.cabal-file >>
                     exit 1
                   fi
+                  BUILD_CABAL_FILE=<< parameters.cabal-file >>
                   echo "export BUILD_CABAL_FILE=$BUILD_CABAL_FILE" >> $BASH_ENV
                   source $BASH_ENV
       - unless:
