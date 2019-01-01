@@ -44,18 +44,55 @@ commands:
       cache-version:
         description: Cache version. Update this value when you want to start with new build caches.
         type: string
+      cabal-file:
+        description: Optional .cabal file. If none provided, first found will be used.
+        type: string
+        default: ""
     steps:
+      - when:
+          condition: << parameters.cabal-file >>
+          steps:
+            - run:
+                name: "Validating provided cabal file"
+                command: |
+                  if [ ! -f "<< parameters.cabal-file >>" ]; then
+                    echo "Cabal file was specified, but doesn't exist << parameters.cabal-file >>"
+                    exit 1
+                  fi
+                  BUILD_CABAL_FILE=<< parameters.cabal-file >>
+                  echo "export BUILD_CABAL_FILE=$BUILD_CABAL_FILE" >> $BASH_ENV
+                  source $BASH_ENV
+      - unless:
+          condition: << parameters.cabal-file >>
+          steps:
+            - run:
+                name: Searching for Cabal file to build
+                command: |
+                  BUILD_CABAL_FILE=$((ls ${CIRCLE_PROJECT_REPONAME}.cabal || ls *.cabal) | head -n 1)
+                  ## What to do with multiple cabal packages?
+                  # BUILD_CABAL_FILE=$((ls ${CIRCLE_PROJECT_REPONAME}.cabal || ls *.cabal || find . -type f -name '*.cabal') | head -n 1)
+                  if [ "$BUILD_CABAL_FILE" = "" ]; then
+                    echo "Could not find .cabal file"
+                    exit 1
+                  fi
+                  echo "Found $BUILD_CABAL_FILE, using it"
+                  echo "export BUILD_CABAL_FILE=$BUILD_CABAL_FILE" >> $BASH_ENV
+                  source $BASH_ENV
+
       - run:
           name: Setting project environment
           command: |
             mkdir -p ./build
+
+            find . -name "*.cabal" | grep -v 'dist-newstyle/' | sort | xargs grep '^' | grep -v ':version:' | md5sum > ./build/project.summary
+
             BUILD_DIST="./dist-newstyle/build"
             BUILD_CABAL_VERSION=$(cabal --numeric-version)
             BUILD_GHC_VERSION=$(cat cabal.project | grep 'with-compiler:' | head -n 1 | tr -s ' ' | cut -d' ' -f2 | cut -d'-' -f2)
             if [ "$BUILD_GHC_VERSION" = "" ]; then BUILD_GHC_VERSION=$(ghc -- --numeric-version); fi
-            BUILD_PROJECT_NAME=$(cat *.cabal | grep '^name:' | head -n 1 | cut -d':' -f 2 | xargs)
-            BUILD_PROJECT_VERSION=$(cat *.cabal | grep -e "^version" | head -n 1 | tr -s " " | cut -d' ' -f2)
-            BUILD_EXE_NAME=$(cat *.cabal | grep 'executable ' | head -n 1 | tr -s ' ' | cut -d' ' -f2 || echo '')
+            BUILD_PROJECT_NAME=$(cat "$BUILD_CABAL_FILE" | grep '^name:' | head -n 1 | cut -d':' -f 2 | xargs)
+            BUILD_PROJECT_VERSION=$(cat "$BUILD_CABAL_FILE" | grep -e "^version" | head -n 1 | tr -s " " | cut -d' ' -f2)
+            BUILD_EXE_NAME=$(cat "$BUILD_CABAL_FILE" | grep 'executable ' | head -n 1 | tr -s ' ' | cut -d' ' -f2 || echo '')
             BUILD_ARCH=$(uname -m)
             BUILD_OS_NAME=$(uname -s | tr '[:upper:]' '[:lower:]')
             BUILD_OS_SUFFIX=$BUILD_OS_NAME
@@ -73,6 +110,7 @@ commands:
             echo "export BUILD_ARCH=$BUILD_ARCH"                       >> ./build/project.env
             echo "export BUILD_OS_NAME=$BUILD_OS_NAME"                 >> ./build/project.env
             echo "export BUILD_OS_SUFFIX=$BUILD_OS_SUFFIX"             >> ./build/project.env
+            echo "export BUILD_CABAL_FILE=$BUILD_CABAL_FILE"           >> ./build/project.env
             echo "export BUILD_PROJECT_NAME=$BUILD_PROJECT_NAME"       >> ./build/project.env
             echo "export BUILD_PROJECT_VERSION=$BUILD_PROJECT_VERSION" >> ./build/project.env
             echo "export BUILD_EXE_NAME=$BUILD_EXE_NAME"               >> ./build/project.env
@@ -108,7 +146,7 @@ jobs:
       cache-version:
         description: Cache version. Update this value when you want to start with new build caches.
         type: string
-        default: cache-1
+        default: ${CACHE_VERSION:-cache-01}
       cabal-threads:
         description: Number of Cabal threads.
         type: integer
@@ -116,6 +154,7 @@ jobs:
       cabal-file:
         description: Cabal file name (including the .cabal extension)
         type: string
+        default: ""
       run-tests:
         description: Boolean for whether or not to run unit tests
         type: boolean
@@ -127,7 +166,7 @@ jobs:
       write-result-workspace:
         description: Boolean for whether or not to persist results to a workspace.
         type: boolean
-        default: true
+        default: false
       before-build:
         description: Optional steps to run after cabal update but before build
         type: steps
@@ -151,13 +190,13 @@ jobs:
 
       - restore_cache:
           keys:
-            - dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "<< parameters.cabal-file >>" }}
+            - dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "./build/project.summary" }}
             - dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}
             - dot-cabal-{{ checksum "./build/build.env" }}
 
       - restore_cache:
           keys:
-            - dist-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "<< parameters.cabal-file >>" }}
+            - dist-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "./build/project.summary" }}
             - dist-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}
 
       - run: cabal new-update -j<< parameters.cabal-threads >>
@@ -203,11 +242,11 @@ jobs:
           paths: [./dist-newstyle]
 
       - save_cache:
-          key: dist-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "<< parameters.cabal-file >>" }}
+          key: dist-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "./build/project.summary" }}
           paths: [./dist-newstyle]
 
       - save_cache:
-          key: dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "<< parameters.cabal-file >>" }}
+          key: dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "./build/project.summary" }}
           paths: [~/.cabal/packages, ~/.cabal/store]
 
       - when:
