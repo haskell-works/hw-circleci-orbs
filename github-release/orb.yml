@@ -358,14 +358,13 @@ examples:
       workflow:
         jobs:
           - haskell/build:
-              name: build-my-app
-              cabal-file: my-application.cabal
+              name: Build
+              write-result-workspace: true
 
           - github/release-cabal:
-              requires: [build-my-app]
+              requires: [Build]
               checkout: true
               attach-workspace: true
-              cabal-file: my-application.cabal
               artefacts-folder: ./build
               filters:
                 branches:
@@ -386,11 +385,11 @@ examples:
 
       workflow:
         - haskell/build:
-            name: build-my-app
-            cabal-file: my-application.cabal
+            name: Build
+            write-result-workspace: true
 
         - github/release:
-            requires: [build-my-app]
+            requires: [Build]
             attach-workspace: true
             filters:
               branches:
