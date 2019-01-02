@@ -196,6 +196,19 @@ commands:
             curl -Ls https://github.com/tcnksm/ghr/releases/download/v0.12.0/ghr_v0.12.0_linux_amd64.tar.gz | tar -xvz -C /tmp/
             sudo cp /tmp/ghr_v0.12.0_linux_amd64/ghr /usr/local/bin/
 
+  source-env:
+    description: Source environment from the specified file.
+    parameters:
+      env-file:
+        description: An env file to source. The content of this file will be added to $BASH_ENV
+        type: string
+    steps:
+      - run:
+          name: Sourcing << parameters.env-file >>
+          command: |
+            cat "<< parameters.env-file >>" >> $BASH_ENV
+            source $BASH_ENV
+
 jobs:
   release-cabal:
     description: Creates a new release using a version from .cabal file
@@ -205,6 +218,10 @@ jobs:
         description: Boolean flag indicating whether to perform checkout or not
         type: boolean
         default: false
+      source-env-file:
+        description: An env file to source. The content of this file will be added to $BASH_ENV
+        type: string
+        default: ""
       cabal-file:
         description: Cabal file name (including the .cabal extension)
         type: string
@@ -234,6 +251,12 @@ jobs:
           steps:
             - attach_workspace:
                 at: << parameters.workspace-root >>
+      - when:
+          name: Sourcing environment
+          condition: << parameters.source-env-file >>
+          steps:
+            - source-env:
+                env-file: << parameters.source-env-file >>
       - release-cabal:
           github-token: << parameters.github-token >>
           cabal-file: << parameters.cabal-file >>
@@ -250,6 +273,10 @@ jobs:
         description: Boolean flag indicating whether to perform checkout or not
         type: boolean
         default: false
+      source-env-file:
+        description: An env file to source. The content of this file will be added to $BASH_ENV
+        type: string
+        default: ""
       tag:
         description: Git tag using as the version number of the release.
         type: string
@@ -281,6 +308,12 @@ jobs:
           steps:
             - attach_workspace:
                 at: << parameters.workspace-root >>
+      - when:
+          name: Sourcing environment
+          condition: << parameters.source-env-file >>
+          steps:
+            - source-env:
+                env-file: << parameters.source-env-file >>
       - release:
           github-token: << parameters.github-token >>
           tag: << parameters.tag >>
