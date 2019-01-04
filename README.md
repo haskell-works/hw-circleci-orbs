@@ -5,9 +5,13 @@ A set of orbs for continuous integration for Haskell projects.
 Published versions can be found in the official [CircleCI Orbs Registry](https://circleci.com/orbs/registry/)
 
 https://circleci.com/orbs/registry/orb/haskell-works/haskell-build
+
 https://circleci.com/orbs/registry/orb/haskell-works/github-release
+
 https://circleci.com/orbs/registry/orb/haskell-works/hackage
+
 https://circleci.com/orbs/registry/orb/haskell-works/docker-publish
+
 
 ## Examples
 
