@@ -1,6 +1,6 @@
 version: 2.1
 
-description: Builds a Haskell application using cabal new-*.
+description: Builds a Haskell application using cabal v2-*.
 
 executors:
   ghc-7_10_3:
@@ -139,7 +139,7 @@ jobs:
     parameters:
       executor:
         description: |
-          An executor that contains GHC and cabal-install (supporting new-* commands family.)
+          An executor that contains GHC and cabal-install (supporting v2-* commands family.)
           "ghc-8_4_4" and "ghc-8_6_3" are provided, but custom executors can be used (see examples).
         type: executor
         default: ghc-8_4_4
@@ -199,14 +199,14 @@ jobs:
             - dist-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "./build/project.summary" }}
             - dist-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}
 
-      - run: cabal new-update -j<< parameters.cabal-threads >>
+      - run: cabal v2-update -j<< parameters.cabal-threads >>
 
       - when:
           name: Running before-build hook steps
           condition: << parameters.before-build >>
           steps: << parameters.before-build >>
 
-      - run: cabal new-build --enable-tests --disable-benchmarks --dependencies-only -j<< parameters.cabal-threads >>
+      - run: cabal v2-build --enable-tests --disable-benchmarks --dependencies-only -j<< parameters.cabal-threads >>
 
       - save_cache:
           key: dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}
@@ -218,7 +218,7 @@ jobs:
 
       - run:
           name: Building project
-          command: cabal new-build --enable-tests -j<< parameters.cabal-threads >>
+          command: cabal v2-build --enable-tests -j<< parameters.cabal-threads >>
 
       - when:
           name: Running after-build hook steps
@@ -230,7 +230,7 @@ jobs:
           steps:
             - run:
                 name: Running unit tests
-                command: cabal new-test -j<< parameters.cabal-threads >>
+                command: cabal v2-test -j<< parameters.cabal-threads >>
 
       - when:
           name: Running after-test hook steps
