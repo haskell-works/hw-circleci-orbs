@@ -43,7 +43,7 @@ commands:
       dockerfile:
         description: Name of dockerfile to use. Defaults to Dockerfile.
         type: string
-        default: Dockerfile
+        default: ""
       path:
         description: Path to the directory containing your Dockerfile and build context. Defaults to . (working directory).
         type: string
@@ -60,27 +60,48 @@ commands:
         description: Name of registry to use. Defaults to docker.io.
         type: string
         default: docker.io
+      extra-build-args:
+        description: Extra arguments passed to 'docker build' command. Useful for providing '--build-arg' values.
+        type: string
+        default: ""
     steps:
       - run:
           name: Build Docker Image
-          command: docker build -f << parameters.dockerfile >> -t << parameters.registry >>/<< parameters.image >>:<< parameters.tag >> << parameters.path >>
+          command: |
+            docker build \
+              <<# parameters.extra-build-args >><< parameters.extra-build-args >><</ parameters.extra-build-args >> \
+              <<# parameters.dockerfile >> -f << parameters.dockerfile >><</ parameters.dockerfile >> \
+              -t << parameters.registry >>/<< parameters.image >>:<< parameters.tag >> \
+              << parameters.path >>
+            docker tag << parameters.registry >>/<< parameters.image >>:<< parameters.tag >> << parameters.registry >>/<< parameters.image >>:latest
+            docker tag << parameters.registry >>/<< parameters.image >>:<< parameters.tag >> << parameters.image >>:<< parameters.tag >>
+            docker tag << parameters.registry >>/<< parameters.image >>:<< parameters.tag >> << parameters.image >>:latest
+            echo "export DOCKER_CONTAINER_TAGGED='<< parameters.registry >>/<< parameters.image >>:<< parameters.tag >>'" >> $BASH_ENV
+            echo "export DOCKER_CONTAINER_LOCAL='<< parameters.image >>:<< parameters.tag >>'" >> $BASH_ENV
+            echo "Tagged << parameters.registry >>/<< parameters.image >>:<< parameters.tag >> (available as DOCKER_CONTAINER_TAGGED)"
+            echo "Tagged << parameters.registry >>/<< parameters.image >>:latest"
+            echo "Tagged << parameters.image >>:<< parameters.tag >> (available as env DOCKER_CONTAINER_LOCAL)"
+            echo "Tagged << parameters.image >>:latest"
+            source $BASH_ENV
   deploy:
     description: Deploy docker image to a registry.
     parameters:
       registry:
         description: Name of registry to use. Defaults to docker.io.
         type: string
-        default: docker.io
       image:
         description: Name of image to create. Defaults to a combination of $DOCKER_LOGIN/$CIRCLE_PROJECT_REPONAME.
         type: string
-        default: $DOCKER_LOGIN/$CIRCLE_PROJECT_REPONAME
+      tag:
+        description: Value for tag to use. Defaults to $CIRCLE_SHA1.
+        type: string
     steps:
       - run:
           name: Push Docker Image
           command: |
             if [[ $CIRCLE_NODE_INDEX == 0 ]]; then
-              docker push << parameters.registry >>/<< parameters.image >>
+              docker push << parameters.registry >>/<< parameters.image >>:<< parameters.tag >>
+              echo "Pushed << parameters.registry >>/<< parameters.image >>:<< parameters.tag >>"
             fi
 
   source-env:
@@ -141,6 +162,10 @@ jobs:
         description: Name of registry to use. Defaults to docker.io.
         type: string
         default: docker.io
+      extra-build-args:
+        description: Extra arguments passed to `docker build` command. Useful for providing `--build-arg` values.
+        type: string
+        default: ""
       after-checkout:
         description: Optional steps to run after checking out the code.
         type: steps
@@ -151,6 +176,10 @@ jobs:
         default: []
       after-build:
         description: Optional steps to run after building the docker image.
+        type: steps
+        default: []
+      after-publish:
+        description: Optional steps to run after publishing the docker image
         type: steps
         default: []
     steps:
@@ -187,6 +216,7 @@ jobs:
           image: << parameters.image >>
           tag: << parameters.tag >>
           registry: << parameters.registry >>
+          extra-build-args: << parameters.extra-build-args >>
       - when:
           name: Run after-build lifecycle hook steps.
           condition: << parameters.after-build >>
@@ -194,6 +224,11 @@ jobs:
       - deploy:
           registry: << parameters.registry >>
           image: << parameters.image >>
+          tag: << parameters.tag >>
+      - when:
+          name: Run after-publish lifecycle hook steps
+          condition: << parameters.after-publish >>
+          steps: << parameters.after-publish >>
 
 examples:
   standard_build_and_push:
