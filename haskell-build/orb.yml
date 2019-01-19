@@ -113,11 +113,11 @@ commands:
             echo "export BUILD_CABAL_FILE=$BUILD_CABAL_FILE"           >> ./build/project.env
             echo "export BUILD_PROJECT_NAME=$BUILD_PROJECT_NAME"       >> ./build/project.env
             echo "export BUILD_PROJECT_VERSION=$BUILD_PROJECT_VERSION" >> ./build/project.env
-            echo "export BUILD_EXE_NAMES=(${ALL_EXE_NAMES[*]})"        >> ./build/project.env
-            echo "export BUILD_EXE_NAME=${ALL_EXE_NAMES[0]}"           >> ./build/project.env
+            echo "export BUILD_EXE_NAMES=(${BUILD_EXE_NAMES[*]})"        >> ./build/project.env
+            echo "export BUILD_EXE_NAME=${BUILD_EXE_NAMES[0]}"           >> ./build/project.env
 
             cat ./build/project.env >> $BASH_ENV
-            cat $BASH_ENV
+            cat ./build/project.env
             source $BASH_ENV
 
   copy-bin:
