@@ -160,9 +160,9 @@ jobs:
         type: boolean
         default: true
       run-check:
-        description: Boolean for whether or not to check if the package is ready for distribution
+        description: Boolean for whether or not to check if the package has valid cabal file for distribution
         type: boolean
-        default: false
+        default: true
       write-result-workspace:
         description: Boolean for whether or not to persist results to a workspace.
         type: boolean
@@ -193,6 +193,14 @@ jobs:
           name: Running after-checkout hook steps
           condition: << parameters.after-checkout >>
           steps: << parameters.after-checkout >>
+
+      - when:
+          name: Checking if hackage would accept cabal file
+          condition: << parameters.run-check >>
+          steps:
+            - run:
+                name: Running cabal check (can be disabled in CI with run-check=false)
+                command: cabal check
 
       - override-ghc
       - set-project-env:
@@ -258,13 +266,6 @@ jobs:
       - save_cache:
           key: dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "./build/project.summary" }}
           paths: [~/.cabal/packages, ~/.cabal/store]
-
-      - when:
-          condition: << parameters.run-check >>
-          steps:
-            - run:
-                name: Checking if the package is ready for distribution
-                command: cabal check
 
       - when:
           condition: << parameters.write-result-workspace >>
