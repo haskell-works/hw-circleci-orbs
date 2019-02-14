@@ -248,7 +248,7 @@ jobs:
           steps:
             - run:
                 name: Running unit tests
-                command: cabal v2-test -j<< parameters.cabal-threads >>
+                command: cabal v2-test --enable-tests -j<< parameters.cabal-threads >>
 
       - when:
           name: Running after-test hook steps
