@@ -140,8 +140,6 @@ commands:
       - run:
           name: Check immediate dependencies coherence
           command: |
-            set -x
-
             cp cabal.project enable.cabal.project
             cp cabal.project disable.cabal.project
             cabal new-freeze --project-file enable.cabal.project --enable-tests --enable-benchmarks
