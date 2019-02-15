@@ -113,8 +113,8 @@ commands:
             echo "export BUILD_CABAL_FILE=$BUILD_CABAL_FILE"           >> ./build/project.env
             echo "export BUILD_PROJECT_NAME=$BUILD_PROJECT_NAME"       >> ./build/project.env
             echo "export BUILD_PROJECT_VERSION=$BUILD_PROJECT_VERSION" >> ./build/project.env
-            echo "export BUILD_EXE_NAMES=(${BUILD_EXE_NAMES[*]})"        >> ./build/project.env
-            echo "export BUILD_EXE_NAME=${BUILD_EXE_NAMES[0]}"           >> ./build/project.env
+            echo "export BUILD_EXE_NAMES=(${BUILD_EXE_NAMES[*]})"      >> ./build/project.env
+            echo "export BUILD_EXE_NAME=${BUILD_EXE_NAMES[0]}"         >> ./build/project.env
 
             cat ./build/project.env >> $BASH_ENV
             cat ./build/project.env
@@ -133,6 +133,29 @@ commands:
             # copy all the executables
             find "$_exe_build_path" -type f -perm -a=x -regextype egrep -regex '^.+/x/(.+)/build/\1/\1$' -exec cp -- "{}" "$PWD/build/dist" \;
             ls --recursive ./build
+
+  check-immediate-dependencies-coherence:
+    description: Check if --enable-test and --enable-benchmark are safe to use
+    steps:
+      - run:
+          name: Check immediate dependencies coherence
+          command: |
+            cp cabal.project enable.cabal.project
+            cp cabal.project disable.cabal.project
+            cabal new-freeze --project-file enable.cabal.project --enable-tests --enable-benchmarks
+            cabal new-freeze --project-file disable.cabal.project --disable-tests --disable-benchmarks
+            (diff disable.cabal.project.freeze enable.cabal.project.freeze || true) | grep "<" | tr -s ' ' | cut -d ' ' -f 2 | cut -d '.' -f 2 > ./build/changing-dependencies.txt
+            cabal-plan info | sed -n '/^CompNameLib$/,/^$/ p' | grep '  ' | sed 's|^  ||g' | rev | cut -d '-' -f 2- | rev > ./build/immediate-dependencies.txt
+            comm -12 ./build/changing-dependencies.txt ./build/immediate-dependencies.txt > ./build/conflicting-dependencies.txt
+
+            if [ "$(cat ./build/conflicting-dependencies.txt | xargs)" != "" ]; then
+              echo "Found incoherent immediate dependencies:"
+              cat ./build/conflicting-dependencies.txt
+              exit 1
+            fi
+            echo "export _BUILD_ENABLE_TESTS_FLAG=--enable-tests" >> $BASH_ENV
+            echo "export _BUILD_ENABLE_BENCHMARKS_FLAG=--enable-benchmarks" >> $BASH_ENV
+            source $BASH_ENV
 
 jobs:
   build:
@@ -155,6 +178,10 @@ jobs:
         description: Cabal file name (including the .cabal extension)
         type: string
         default: ""
+      fail-incoherent-builds:
+        description: Fail the build when immediate dependencies are incoherent
+        type: boolean
+        default: true
       run-tests:
         description: Boolean for whether or not to run unit tests
         type: boolean
@@ -224,7 +251,13 @@ jobs:
           condition: << parameters.before-build >>
           steps: << parameters.before-build >>
 
-      - run: cabal v2-build --enable-tests --disable-benchmarks --dependencies-only -j<< parameters.cabal-threads >>
+      - when:
+          name: Check immediate dependencies coherence
+          condition: << parameters.fail-incoherent-builds >>
+          steps:
+            - check-immediate-dependencies-coherence
+
+      - run: cabal v2-build $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG --dependencies-only -j<< parameters.cabal-threads >>
 
       - save_cache:
           key: dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}
@@ -236,7 +269,7 @@ jobs:
 
       - run:
           name: Building project
-          command: cabal v2-build --enable-tests -j<< parameters.cabal-threads >>
+          command: cabal v2-build $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
 
       - when:
           name: Running after-build hook steps
@@ -248,7 +281,7 @@ jobs:
           steps:
             - run:
                 name: Running unit tests
-                command: cabal v2-test --enable-tests -j<< parameters.cabal-threads >>
+                command: cabal v2-test $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
 
       - when:
           name: Running after-test hook steps
