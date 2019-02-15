@@ -140,12 +140,24 @@ commands:
       - run:
           name: Check immediate dependencies coherence
           command: |
+            set -x
+
             cp cabal.project enable.cabal.project
             cp cabal.project disable.cabal.project
             cabal new-freeze --project-file enable.cabal.project --enable-tests --enable-benchmarks
             cabal new-freeze --project-file disable.cabal.project --disable-tests --disable-benchmarks
-            (diff disable.cabal.project.freeze enable.cabal.project.freeze || true) | grep "<" | grep -v 'constraints:' | tr -s ' ' | cut -d ' ' -f 2 | cut -d '.' -f 2 > build/changing-dependencies.txt
-            cabal-plan info | sed -n '/^CompNameLib$/,/^$/ p' | grep '  ' | sed 's|^  ||g' | rev | cut -d '-' -f 2- | rev > build/immediate-dependencies.txt
+            (diff disable.cabal.project.freeze enable.cabal.project.freeze || true) \
+              | (grep "<" || true)                                                  \
+              | (grep -v 'constraints:' || true)                                    \
+              | tr -s ' '                                                           \
+              | cut -d ' ' -f 2                                                     \
+              | cut -d '.' -f 2 > build/changing-dependencies.txt
+            cabal-plan info | sed -n '/^CompNameLib$/,/^$/ p'                       \
+              | (grep '  ' || true)                                                 \
+              | sed 's|^  ||g'                                                      \
+              | rev                                                                 \
+              | cut -d '-' -f 2-                                                    \
+              | rev > build/immediate-dependencies.txt
             touch .circleci/whitelist-dependencies.txt
             comm -13 .circleci/whitelist-dependencies.txt build/immediate-dependencies.txt > build/important-dependencies.txt
             comm -12 build/changing-dependencies.txt build/important-dependencies.txt > build/incoherent-dependencies.txt
