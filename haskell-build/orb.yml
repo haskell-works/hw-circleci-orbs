@@ -150,26 +150,26 @@ commands:
               | tr -s ' '                                                           \
               | cut -d ' ' -f 2                                                     \
               | cut -d '.' -f 2                                                     \
-              | sort > build/changing-dependencies.txt
+              | sort > /tmp/changing-dependencies.txt
             cabal-plan info | sed -n '/^CompNameLib$/,/^$/ p'                       \
               | (grep '  ' || true)                                                 \
               | sed 's|^  ||g'                                                      \
               | rev                                                                 \
               | cut -d '-' -f 2-                                                    \
               | rev                                                                 \
-              | sort > build/immediate-dependencies.txt
+              | sort > /tmp/immediate-dependencies.txt
             touch .circleci/whitelist-dependencies.txt
-            comm -13 <(sort .circleci/whitelist-dependencies.txt) build/immediate-dependencies.txt > build/important-dependencies.txt
-            comm -12 build/changing-dependencies.txt build/important-dependencies.txt > build/incoherent-dependencies.txt
+            comm -13 <(sort .circleci/whitelist-dependencies.txt) /tmp/immediate-dependencies.txt > /tmp/important-dependencies.txt
+            comm -12 /tmp/changing-dependencies.txt /tmp/important-dependencies.txt > /tmp/incoherent-dependencies.txt
 
             echo "Changing dependencies: "
-            sed 's|^|  |g' build/changing-dependencies.txt
+            sed 's|^|  |g' /tmp/changing-dependencies.txt
             echo "Whitelisted dependencies: "
             sed 's|^|  |g' .circleci/whitelist-dependencies.txt
             echo "Incoherent dependencies: "
-            sed 's|^|  |g' build/incoherent-dependencies.txt
+            sed 's|^|  |g' /tmp/incoherent-dependencies.txt
 
-            if [ "$(cat build/incoherent-dependencies.txt | xargs)" != "" ]; then
+            if [ "$(cat /tmp/incoherent-dependencies.txt | xargs)" != "" ]; then
               echo "Error: Found incoherent immediate dependencies"
               exit 1
             fi
