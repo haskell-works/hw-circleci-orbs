@@ -73,7 +73,7 @@ commands:
                   # BUILD_CABAL_FILE=$((ls ${CIRCLE_PROJECT_REPONAME}.cabal || ls *.cabal || find . -type f -name '*.cabal') | head -n 1)
                   if [ "$BUILD_CABAL_FILE" = "" ]; then
                     echo "Could not find .cabal file"
-                    exit 1
+                    exit 0
                   fi
                   echo "Found $BUILD_CABAL_FILE, using it"
                   echo "export BUILD_CABAL_FILE=$BUILD_CABAL_FILE" >> $BASH_ENV
@@ -90,9 +90,13 @@ commands:
             BUILD_CABAL_VERSION=$(cabal --numeric-version)
             BUILD_GHC_VERSION=$(cat cabal.project | grep 'with-compiler:' | head -n 1 | tr -s ' ' | cut -d' ' -f2 | cut -d'-' -f2)
             if [ "$BUILD_GHC_VERSION" = "" ]; then BUILD_GHC_VERSION=$(ghc -- --numeric-version); fi
-            BUILD_PROJECT_NAME=$(cat "$BUILD_CABAL_FILE" | grep '^name:' | head -n 1 | cut -d':' -f 2 | xargs)
-            BUILD_PROJECT_VERSION=$(cat "$BUILD_CABAL_FILE" | grep -e "^version" | head -n 1 | tr -s " " | cut -d' ' -f2)
-            BUILD_EXE_NAMES=$(cat "$BUILD_CABAL_FILE" | grep 'executable ' | head -n 1 | tr -s ' ' | cut -d' ' -f2 || echo '')
+
+            if [ "$BUILD_CABAL_FILE" = ""]; then
+              BUILD_PROJECT_NAME=$(cat "$BUILD_CABAL_FILE" | grep '^name:' | head -n 1 | cut -d':' -f 2 | xargs)
+              BUILD_PROJECT_VERSION=$(cat "$BUILD_CABAL_FILE" | grep -e "^version" | head -n 1 | tr -s " " | cut -d' ' -f2)
+              BUILD_EXE_NAMES=$(cat "$BUILD_CABAL_FILE" | grep 'executable ' | head -n 1 | tr -s ' ' | cut -d' ' -f2 || echo '')
+            fi
+
             BUILD_ARCH=$(uname -m)
             BUILD_OS_NAME=$(uname -s | tr '[:upper:]' '[:lower:]')
             BUILD_OS_SUFFIX=$BUILD_OS_NAME
@@ -110,11 +114,14 @@ commands:
             echo "export BUILD_ARCH=$BUILD_ARCH"                       >> ./build/project.env
             echo "export BUILD_OS_NAME=$BUILD_OS_NAME"                 >> ./build/project.env
             echo "export BUILD_OS_SUFFIX=$BUILD_OS_SUFFIX"             >> ./build/project.env
-            echo "export BUILD_CABAL_FILE=$BUILD_CABAL_FILE"           >> ./build/project.env
-            echo "export BUILD_PROJECT_NAME=$BUILD_PROJECT_NAME"       >> ./build/project.env
-            echo "export BUILD_PROJECT_VERSION=$BUILD_PROJECT_VERSION" >> ./build/project.env
-            echo "export BUILD_EXE_NAMES=(${BUILD_EXE_NAMES[*]})"      >> ./build/project.env
-            echo "export BUILD_EXE_NAME=${BUILD_EXE_NAMES[0]}"         >> ./build/project.env
+
+            if [ "$BUILD_CABAL_FILE" = ""]; then
+              echo "export BUILD_CABAL_FILE=$BUILD_CABAL_FILE"           >> ./build/project.env
+              echo "export BUILD_PROJECT_NAME=$BUILD_PROJECT_NAME"       >> ./build/project.env
+              echo "export BUILD_PROJECT_VERSION=$BUILD_PROJECT_VERSION" >> ./build/project.env
+              echo "export BUILD_EXE_NAMES=(${BUILD_EXE_NAMES[*]})"      >> ./build/project.env
+              echo "export BUILD_EXE_NAME=${BUILD_EXE_NAMES[0]}"         >> ./build/project.env
+            fi
 
             cat ./build/project.env >> $BASH_ENV
             cat ./build/project.env
