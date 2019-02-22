@@ -132,19 +132,14 @@ commands:
       - run:
           name: Copying executable
           command: |
-            if [ "$BUILD_CABAL_FILE" = ""]; then
-              echo "Cannot copy binary file, as no .cabal was found, and we therefore cannot get the necessary metadata to copy the binary."
-              echo "This step can be disabled by setting 'write-result-workspace' to false."
-              exit 1
-            fi
-
             mkdir -p ./build/dist
-            _os_suffix=$OS_NAME
-            if [ "$_os_suffix" = "darwin" ]; then _os_suffix="osx"; fi
-            # according to Cabal docs executables are located here
-            _exe_build_path="$PWD/dist-newstyle/build/$BUILD_ARCH-$BUILD_OS_NAME/ghc-$BUILD_GHC_VERSION/$BUILD_PROJECT_NAME-$BUILD_PROJECT_VERSION/x/"
-            # copy all the executables
-            find "$_exe_build_path" -type f -perm -a=x -regextype egrep -regex '^.+/x/(.+)/build/\1/\1$' -exec cp -- "{}" "$PWD/build/dist" \;
+
+            # Cabal symlinks its installs, so we need to create a place for it to symlink to, and then perform a hard copy.
+            mkdir ./tmp/
+            cabal v2-install --symlink-bindir=./tmp/
+            cp -R -L ./tmp/* ./build/dist/
+            rm -rf ./tmp/
+
             ls --recursive ./build
 
   check-immediate-dependencies-coherence:
