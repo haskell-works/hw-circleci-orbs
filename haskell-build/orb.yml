@@ -132,6 +132,12 @@ commands:
       - run:
           name: Copying executable
           command: |
+            if [ "$BUILD_CABAL_FILE" = ""]; then
+              echo "Cannot copy binary file, as no .cabal was found, and we therefore cannot get the necessary metadata to copy the binary."
+              echo "This step can be disabled by setting 'write-result-workspace' to false."
+              exit 1
+            fi
+
             mkdir -p ./build/dist
             _os_suffix=$OS_NAME
             if [ "$_os_suffix" = "darwin" ]; then _os_suffix="osx"; fi
