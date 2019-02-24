@@ -49,6 +49,10 @@ commands:
         type: string
         default: ""
     steps:
+      - run:
+          name: Create a build plan
+          command: cabal-plan info > ./build/build-plan.txt
+
       - when:
           condition: << parameters.cabal-file >>
           steps:
@@ -159,7 +163,7 @@ commands:
               | cut -d ' ' -f 2                                                     \
               | cut -d '.' -f 2                                                     \
               | sort > /tmp/changing-dependencies.txt
-            cabal-plan info | sed -n '/^CompNameLib$/,/^$/ p'                       \
+            cat ./build/build-plan.txt | sed -n '/^CompNameLib$/,/^$/ p'                       \
               | (grep '  ' || true)                                                 \
               | sed 's|^  ||g'                                                      \
               | rev                                                                 \
@@ -257,6 +261,10 @@ jobs:
           condition: << parameters.after-checkout >>
           steps: << parameters.after-checkout >>
 
+      - override-ghc
+      - set-project-env:
+          cache-version: << parameters.cache-version >>
+
       - when:
           name: Checking if hackage would accept cabal file
           condition: << parameters.run-check >>
@@ -264,10 +272,6 @@ jobs:
             - run:
                 name: Running cabal check (can be disabled in CI with run-check=false)
                 command: cabal check
-
-      - override-ghc
-      - set-project-env:
-          cache-version: << parameters.cache-version >>
 
       - restore_cache:
           keys:
