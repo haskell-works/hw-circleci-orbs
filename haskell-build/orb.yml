@@ -68,6 +68,7 @@ commands:
             - run:
                 name: Searching for Cabal file to build
                 command: |
+                  if [ -f cabal.project ]; do -----
                   BUILD_CABAL_FILE=$((ls ${CIRCLE_PROJECT_REPONAME}.cabal || ls *.cabal) | head -n 1)
                   ## What to do with multiple cabal packages?
                   # BUILD_CABAL_FILE=$((ls ${CIRCLE_PROJECT_REPONAME}.cabal || ls *.cabal || find . -type f -name '*.cabal') | head -n 1)
@@ -78,6 +79,20 @@ commands:
                   echo "Found $BUILD_CABAL_FILE, using it"
                   echo "export BUILD_CABAL_FILE=$BUILD_CABAL_FILE" >> $BASH_ENV
                   source $BASH_ENV
+
+      - when:
+          name: Checking if hackage would accept cabal file
+          condition: << parameters.run-check >>
+          steps:
+            - run:
+                name: Running cabal check (can be disabled in CI with run-check=false)
+                command: |
+                  for x in $(cat cabal.project | sed -n '/^packages:/,/^$/ p' | sed 's|^packages:||g'); do
+                    ( echo "\n# Running cabal check in $x"
+                      cd "$x"
+                      cabal check
+                    )
+                  done
 
       - run:
           name: Setting project environment
@@ -238,14 +253,6 @@ jobs:
           name: Running after-checkout hook steps
           condition: << parameters.after-checkout >>
           steps: << parameters.after-checkout >>
-
-      - when:
-          name: Checking if hackage would accept cabal file
-          condition: << parameters.run-check >>
-          steps:
-            - run:
-                name: Running cabal check (can be disabled in CI with run-check=false)
-                command: cabal check
 
       - override-ghc
       - set-project-env:
