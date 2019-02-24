@@ -135,10 +135,10 @@ commands:
             mkdir -p ./build/dist
 
             # Cabal symlinks its installs, so we need to create a place for it to symlink to, and then perform a hard copy.
-            mkdir ./tmp/
-            cabal v2-install --symlink-bindir=./tmp/
-            cp -R -L ./tmp/* ./build/dist/
-            rm -rf ./tmp/
+            mkdir -p ./tmp/bin/
+            cabal v2-install --symlink-bindir=./tmp/bin/
+            cp -R -L ./tmp/bin/* ./build/dist/
+            rm -rf ./tmp/bin/
 
             ls --recursive ./build
 
