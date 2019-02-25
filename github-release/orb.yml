@@ -391,19 +391,18 @@ examples:
         - github/release:
             requires: [Build]
             attach-workspace: true
+            source-env-file: ./build/project.env
             filters:
               branches:
                 only: master
 
-        - before-release:
-            - run:
-                name: Prepare environment for release
-                command: |
-                  cat ./build/project.env >> $BASH_ENV
-                  source $BASH_ENV
-                  tar zcvf ./tmp/artefacts/${BUILD_PROJECT_NAME}_${BUILD_ARCH}_${BUILD_OS_NAME}.tar.gz ./build
+            before-release:
+              - run:
+                  name: Prepare environment for release
+                  command: |
+                    tar zcvf ./tmp/artefacts/${CIRCLE_PROJECT_REPONAME}_${BUILD_ARCH}_${BUILD_OS_NAME}.tar.gz ./build
 
-          artefacts-folder: ./tmp/artefacts
-          tag: v${BUILD_PROJECT_VERSION}
-          title: Release v${BUILD_PROJECT_VERSION}
+            artefacts-folder: ./tmp/artefacts
+            tag: v${BUILD_EXE_VERSION}
+            title: Release v${BUILD_EXE_VERSION}
 

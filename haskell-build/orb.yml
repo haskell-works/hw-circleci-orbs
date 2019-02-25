@@ -67,46 +67,13 @@ commands:
       cache-version:
         description: Cache version. Update this value when you want to start with new build caches.
         type: string
-      cabal-file:
-        description: Optional .cabal file. If none provided, first found will be used.
-        type: string
-        default: ""
+
     steps:
       - run:
           name: Configuting the build
           command: cabal v2-configure
 
       - describe-build
-
-      - when:
-          condition: << parameters.cabal-file >>
-          steps:
-            - run:
-                name: "Validating provided cabal file"
-                command: |
-                  if [ ! -f "<< parameters.cabal-file >>" ]; then
-                    echo "Cabal file was specified, but doesn't exist << parameters.cabal-file >>"
-                    exit 1
-                  fi
-                  BUILD_CABAL_FILE=<< parameters.cabal-file >>
-                  echo "export BUILD_CABAL_FILE=$BUILD_CABAL_FILE" >> $BASH_ENV
-                  source $BASH_ENV
-      - unless:
-          condition: << parameters.cabal-file >>
-          steps:
-            - run:
-                name: Searching for Cabal file to build
-                command: |
-                  BUILD_CABAL_FILE=$((ls ${CIRCLE_PROJECT_REPONAME}.cabal || ls *.cabal) | head -n 1)
-                  ## What to do with multiple cabal packages?
-                  # BUILD_CABAL_FILE=$((ls ${CIRCLE_PROJECT_REPONAME}.cabal || ls *.cabal || find . -type f -name '*.cabal') | head -n 1)
-                  if [ "$BUILD_CABAL_FILE" = "" ]; then
-                    echo "Could not find .cabal file"
-                    exit 0
-                  fi
-                  echo "Found $BUILD_CABAL_FILE, using it"
-                  echo "export BUILD_CABAL_FILE=$BUILD_CABAL_FILE" >> $BASH_ENV
-                  source $BASH_ENV
 
       - run:
           name: Setting project environment
@@ -120,11 +87,10 @@ commands:
             BUILD_GHC_VERSION=$(cat cabal.project | grep 'with-compiler:' | head -n 1 | tr -s ' ' | cut -d' ' -f2 | cut -d'-' -f2)
             if [ "$BUILD_GHC_VERSION" = "" ]; then BUILD_GHC_VERSION=$(ghc -- --numeric-version); fi
 
-            if [ "$BUILD_CABAL_FILE" = ""]; then
-              BUILD_PROJECT_NAME=$(cat "$BUILD_CABAL_FILE" | grep '^name:' | head -n 1 | cut -d':' -f 2 | xargs)
-              BUILD_PROJECT_VERSION=$(cat "$BUILD_CABAL_FILE" | grep -e "^version" | head -n 1 | tr -s " " | cut -d' ' -f2)
-              BUILD_EXE_NAMES=$(cat "$BUILD_CABAL_FILE" | grep 'executable ' | head -n 1 | tr -s ' ' | cut -d' ' -f2 || echo '')
-            fi
+            BUILD_EXE_NAMES_VERSIONS=$(cat ./build/build-info.json | jq -r '. | select(."component-type" == "exe") | "\(."component-name"):\(."pkg-version")"')
+            BUILD_EXE_NAMES=$(echo ${BUILD_EXE_NAMES_VERSIONS[@]} | cut -d ':' -f 1)
+            BUILD_EXE_NAME=${BUILD_EXE_NAMES[0]}
+            BUILD_EXE_VERSION=$(echo ${BUILD_EXE_NAMES_VERSIONS[0]} | cut -d ':' -f 2)
 
             BUILD_ARCH=$(uname -m)
             BUILD_OS_NAME=$(uname -s | tr '[:upper:]' '[:lower:]')
@@ -144,13 +110,10 @@ commands:
             echo "export BUILD_OS_NAME=$BUILD_OS_NAME"                 >> ./build/project.env
             echo "export BUILD_OS_SUFFIX=$BUILD_OS_SUFFIX"             >> ./build/project.env
 
-            if [ "$BUILD_CABAL_FILE" = ""]; then
-              echo "export BUILD_CABAL_FILE=$BUILD_CABAL_FILE"           >> ./build/project.env
-              echo "export BUILD_PROJECT_NAME=$BUILD_PROJECT_NAME"       >> ./build/project.env
-              echo "export BUILD_PROJECT_VERSION=$BUILD_PROJECT_VERSION" >> ./build/project.env
-              echo "export BUILD_EXE_NAMES=(${BUILD_EXE_NAMES[*]})"      >> ./build/project.env
-              echo "export BUILD_EXE_NAME=${BUILD_EXE_NAMES[0]}"         >> ./build/project.env
-            fi
+            echo "export BUILD_EXE_NAMES_VERSIONS=(${BUILD_EXE_NAMES_VERSIONS[*]})" >> ./build/project.env
+            echo "export BUILD_EXE_NAMES=(${BUILD_EXE_NAMES[*]})"      >> ./build/project.env
+            echo "export BUILD_EXE_NAME=$BUILD_EXE_NAME"               >> ./build/project.env
+            echo "export BUILD_EXE_VERSION=$BUILD_EXE_VERSION"         >> ./build/project.env
 
             cat ./build/project.env >> $BASH_ENV
             cat ./build/project.env
@@ -227,10 +190,6 @@ jobs:
         description: Number of Cabal threads.
         type: integer
         default: 4
-      cabal-file:
-        description: Cabal file name (including the .cabal extension)
-        type: string
-        default: ""
       cabal-build-extra:
         description: Extra CLI parameters to pass to the "cabal v2-build" command.
         type: string
@@ -420,7 +379,6 @@ examples:
         build-my-application:
           jobs:
             - haskell/build:
-                cabal-file: my-application.cabal
                 before-build:
                   - run: echo "I run before build"
                 after-build:

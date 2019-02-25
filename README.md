@@ -44,7 +44,7 @@ workflows:
           attach-workspace: true
           source-env-file: ./build/project.env
           registry: quay.io
-          image: ${BUILD_PROJECT_NAME}_${BUILD_PROJECT_VERSION}
+          image: ${BUILD_EXE_NAME}_${BUILD_EXE_VERSION}
           tag: $(if [ "$CIRCLE_BRANCH" = "master" ]; then echo ${CIRCLE_BUILD_NUM}; else echo "${CIRCLE_BUILD_NUM}-${CIRCLE_SHA1:0:5}"; fi)
 
       - github/release-cabal:
