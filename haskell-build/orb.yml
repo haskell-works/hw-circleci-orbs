@@ -45,7 +45,6 @@ commands:
       - run:
           name: Describing the build
           command: |
-            if [ -f ./dist-newstyle/cache/plan.json ]
             cat ./dist-newstyle/cache/plan.json | jq -r "$(cat \<<-EOF
               .
             | ."install-plan"
@@ -284,6 +283,7 @@ jobs:
           steps: << parameters.after-checkout >>
 
       - override-ghc
+      - run: cabal v2-update -j<< parameters.cabal-threads >>
       - set-project-env:
           cache-version: << parameters.cache-version >>
 
@@ -305,8 +305,6 @@ jobs:
           keys:
             - dist-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "./build/project.summary" }}
             - dist-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}
-
-      - run: cabal v2-update -j<< parameters.cabal-threads >>
 
       - when:
           name: Running before-build hook steps
