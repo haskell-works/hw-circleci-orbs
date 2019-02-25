@@ -46,7 +46,7 @@ commands:
           name: Describing the build
           command: |
             if [ -f ./dist-newstyle/cache/plan.json ]
-            cat ./dist-newstyle/cache/plan.json | jq -r "$(cat <<-EOF
+            cat ./dist-newstyle/cache/plan.json | jq -r "$(cat \<<-EOF
               .
             | ."install-plan"
             | map(select(."pkg-src"."type" == "local"))[]
