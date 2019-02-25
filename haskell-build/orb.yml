@@ -76,20 +76,6 @@ commands:
       - describe-build
 
       - run:
-          name: Searching for Cabal file to build
-          command: |
-            BUILD_CABAL_FILE=$((ls ${CIRCLE_PROJECT_REPONAME}.cabal || ls *.cabal) | head -n 1)
-            ## What to do with multiple cabal packages?
-            # BUILD_CABAL_FILE=$((ls ${CIRCLE_PROJECT_REPONAME}.cabal || ls *.cabal || find . -type f -name '*.cabal') | head -n 1)
-            if [ "$BUILD_CABAL_FILE" = "" ]; then
-              echo "Could not find .cabal file"
-              exit 0
-            fi
-            echo "Found $BUILD_CABAL_FILE, using it"
-            echo "export BUILD_CABAL_FILE=$BUILD_CABAL_FILE" >> $BASH_ENV
-            source $BASH_ENV
-
-      - run:
           name: Setting project environment
           command: |
             mkdir -p ./build
