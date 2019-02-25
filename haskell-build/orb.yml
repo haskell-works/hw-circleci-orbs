@@ -45,6 +45,7 @@ commands:
       - run:
           name: Describing the build
           command: |
+            mkdir -p ./build
             cat ./dist-newstyle/cache/plan.json | jq -r "$(cat \<<-EOF
               .
             | ."install-plan"
@@ -70,7 +71,7 @@ commands:
 
     steps:
       - run:
-          name: Configuting the build
+          name: Configuring the build
           command: cabal v2-configure
 
       - describe-build
@@ -78,8 +79,6 @@ commands:
       - run:
           name: Setting project environment
           command: |
-            mkdir -p ./build
-
             find . -name "*.cabal" | grep -v 'dist-newstyle/' | sort | xargs grep '^' | grep -v ':version:' | md5sum > ./build/project.summary
 
             BUILD_DIST="./dist-newstyle/build"
