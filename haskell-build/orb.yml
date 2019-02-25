@@ -39,6 +39,30 @@ commands:
             _ghc_ver=$(ghc --numeric-version)
             sed -i '/^with-compiler:/{h;s/:.*/: ghc-'"$_ghc_ver"'/};${x;/^$/{s//with-compiler: ghc-'"$_ghc_ver"'/;H};x}' cabal.project
 
+  describe-build:
+    description: Describes the build by providing info for all the local components in this build
+    steps:
+      - run:
+          name: Describing the build
+          command: |
+            if [ -f ./dist-newstyle/cache/plan.json ]
+            cat ./dist-newstyle/cache/plan.json | jq -r "$(cat <<-EOF
+              .
+            | ."install-plan"
+            | map(select(."pkg-src"."type" == "local"))[]
+            | { "pkg-name": ."pkg-name"
+              , "component-id": ."component-name"
+              , "path": ."pkg-src".path
+              , "bin-file": ."bin-file"
+              , "pkg-version": ."pkg-version"
+              , "component-type": ."component-name" | split(":")[0]
+              , "component-name": ."component-name" | split(":")[1]
+              }
+            EOF
+            )" > ./build/build-info.json
+            cat ./build/build-info.json
+
+
   set-project-env:
     parameters:
       cache-version:
@@ -50,8 +74,10 @@ commands:
         default: ""
     steps:
       - run:
-          name: Create a build plan
-          command: cabal-plan info > ./build/build-plan.txt
+          name: Configuting the build
+          command: cabal v2-configure
+
+      - describe-build
 
       - when:
           condition: << parameters.cabal-file >>
@@ -138,12 +164,8 @@ commands:
           command: |
             mkdir -p ./build/dist
 
-            # Cabal symlinks its installs, so we need to create a place for it to symlink to, and then perform a hard copy.
-            mkdir -p ./tmp/bin/
-            cabal v2-install --symlink-bindir=./tmp/bin/
-            cp -R -L ./tmp/bin/* ./build/dist/
-            rm -rf ./tmp/bin/
-
+            # Copy all the relevant executables and copy them to the dist folder
+            cp `cat ./build/build-info.json | jq -r '. | select(."component-type" == "exe") | ."bin-file"'` ./build/dist
             ls --recursive ./build
 
   check-immediate-dependencies-coherence:
@@ -163,7 +185,7 @@ commands:
               | cut -d ' ' -f 2                                                     \
               | cut -d '.' -f 2                                                     \
               | sort > /tmp/changing-dependencies.txt
-            cat ./build/build-plan.txt | sed -n '/^CompNameLib$/,/^$/ p'                       \
+            cabal-plan info | sed -n '/^CompNameLib$/,/^$/ p'                       \
               | (grep '  ' || true)                                                 \
               | sed 's|^  ||g'                                                      \
               | rev                                                                 \
