@@ -281,7 +281,7 @@ jobs:
           steps:
             - check-immediate-dependencies-coherence
 
-      - run: cabal v2-build << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG --dependencies-only -j<< parameters.cabal-threads >>
+      - run: cabal v2-build all << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG --dependencies-only -j<< parameters.cabal-threads >>
 
       - save_cache:
           key: dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}
@@ -293,7 +293,7 @@ jobs:
 
       - run:
           name: Building project
-          command: cabal v2-build << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+          command: cabal v2-build all << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
 
       - when:
           name: Running after-build hook steps
@@ -305,7 +305,7 @@ jobs:
           steps:
             - run:
                 name: Running unit tests
-                command: cabal v2-test << parameters.cabal-test-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+                command: cabal v2-test all << parameters.cabal-test-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
 
       - when:
           name: Running after-test hook steps
