@@ -252,7 +252,13 @@ jobs:
           steps:
             - run:
                 name: Running cabal check (can be disabled in CI with run-check=false)
-                command: cabal check
+                command: |
+                  for x in $(cat ./build/build-info.json | jq -r .path | sort -u); do
+                    ( echo "\n# Running cabal check in $x"
+                      cd "$x"
+                      cabal check
+                    )
+                  done
 
       - restore_cache:
           keys:
