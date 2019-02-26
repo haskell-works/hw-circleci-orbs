@@ -46,7 +46,7 @@ commands:
           name: Describing the build (./build/build-info.json)
           command: |
             mkdir -p ./build
-            cat ./dist-newstyle/cache/plan.json | jq -r "$(cat <<-EOF
+            cat ./dist-newstyle/cache/plan.json | jq -r "$(cat \<<-EOF
               ."install-plan"[]
             | select(."pkg-src"."type" == "local")
             | . as \$x
