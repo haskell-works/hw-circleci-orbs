@@ -43,21 +43,36 @@ commands:
     description: Describes the build by providing info for all the local components in this build
     steps:
       - run:
-          name: Describing the build
+          name: Describing the build (./build/build-info.json)
           command: |
             mkdir -p ./build
-            cat ./dist-newstyle/cache/plan.json | jq -r "$(cat \<<-EOF
-              .
-            | ."install-plan"
-            | map(select(."pkg-src"."type" == "local"))[]
-            | { "pkg-name": ."pkg-name"
-              , "component-id": ."component-name"
-              , "path": ."pkg-src".path
-              , "bin-file": ."bin-file"
-              , "pkg-version": ."pkg-version"
-              , "component-type": ."component-name" | split(":")[0]
-              , "component-name": ."component-name" | split(":")[1]
-              }
+            cat ./dist-newstyle/cache/plan.json | jq -r "$(cat <<-EOF
+              ."install-plan"[]
+            | select(."pkg-src"."type" == "local")
+            | . as \$x
+            | if ."component-name"
+                then
+                  { "pkg-name": ."pkg-name"
+                  , "component-id": ."component-name"
+                  , "path": ."pkg-src".path
+                  , "bin-file": ."bin-file"
+                  , "pkg-version": ."pkg-version"
+                  , "component-type": ."component-name" | split(":")[0]
+                  , "component-name": ."component-name" | split(":")[1]
+                  }
+                else
+                    ."components"
+                  | to_entries[]
+                  | { "component-id": ."key"
+                    , "component-type": ."key" | split(":")[0]
+                    , "component-name": ."key" | split(":")[1]
+                    , "bin-file": .value."bin-file"
+                    , "pkg-name": \$x."pkg-name"
+                    , "pkg-version": \$x."pkg-version"
+                    , "path": \$x."pkg-src".path
+                    }
+                end
+            | select(."component-type" != "setup")
             EOF
             )" > ./build/build-info.json
             cat ./build/build-info.json
@@ -91,10 +106,8 @@ commands:
             BUILD_EXE_NAME=${BUILD_EXE_NAMES[0]}
             BUILD_EXE_VERSION=$(echo ${BUILD_EXE_NAMES_VERSIONS[0]} | cut -d ':' -f 2)
 
-            BUILD_ARCH=$(uname -m)
-            BUILD_OS_NAME=$(uname -s | tr '[:upper:]' '[:lower:]')
-            BUILD_OS_SUFFIX=$BUILD_OS_NAME
-            if [ "$BUILD_OS_SUFFIX" = "darwin" ]; then BUILD_OS_SUFFIX="osx"; fi
+            BUILD_ARCH=$(cat ./dist-newstyle/cache/plan.json | jq -r '.arch' | head -n 1)
+            BUILD_OS_NAME=$(cat ./dist-newstyle/cache/plan.json | jq -r '.os' | head -n 1)
 
             echo "$BUILD_GHC_VERSION" > ./build/ghc.version
 
@@ -107,7 +120,6 @@ commands:
             echo "export BUILD_GHC_VERSION=$BUILD_GHC_VERSION"         >> ./build/project.env
             echo "export BUILD_ARCH=$BUILD_ARCH"                       >> ./build/project.env
             echo "export BUILD_OS_NAME=$BUILD_OS_NAME"                 >> ./build/project.env
-            echo "export BUILD_OS_SUFFIX=$BUILD_OS_SUFFIX"             >> ./build/project.env
 
             echo "export BUILD_EXE_NAMES_VERSIONS=(${BUILD_EXE_NAMES_VERSIONS[*]})" >> ./build/project.env
             echo "export BUILD_EXE_NAMES=(${BUILD_EXE_NAMES[*]})"      >> ./build/project.env
