@@ -77,13 +77,36 @@ commands:
             )" > ./build/build-info.json
             cat ./build/build-info.json
 
-
-  set-project-env:
+  capture-build-environment:
+    description: Capturing build environment (for caching)
     parameters:
       cache-version:
         description: Cache version. Update this value when you want to start with new build caches.
         type: string
 
+    steps:
+      - run:
+          name: Capture build environment
+          command: |
+            mkdir -p ./build
+
+            find . -name "*.cabal" | grep -v 'dist-newstyle/' | sort | xargs grep '^' | grep -v ':version:' | md5sum > ./build/project.summary
+
+            BUILD_GHC_VERSION=$(cat cabal.project | grep 'with-compiler:' | head -n 1 | tr -s ' ' | cut -d' ' -f2 | cut -d'-' -f2)
+            if [ "$BUILD_GHC_VERSION" = "" ]; then BUILD_GHC_VERSION=$(ghc -- --numeric-version); fi
+
+            BUILD_ARCH=$(uname -m)
+
+            BUILD_OS_NAME=$(uname -s | tr '[:upper:]' '[:lower:]')
+            if [ "$BUILD_OS_NAME" = "darwin" ]; then BUILD_OS_NAME="osx"; fi
+
+            echo "CACHE_VERSION=<< parameters.cache-version >>"         > ./build/build.env
+            echo "BUILD_GHC_VERSION=$BUILD_GHC_VERSION"                >> ./build/build.env
+            echo "BUILD_ARCH=$BUILD_ARCH"                              >> ./build/build.env
+            echo "BUILD_OS_NAME=$BUILD_OS_NAME"                        >> ./build/build.env
+            cat ./build/build.env >> $BASH_ENV
+
+  set-project-env:
     steps:
       - run:
           name: Configuring the build
@@ -94,27 +117,15 @@ commands:
       - run:
           name: Setting project environment
           command: |
-            find . -name "*.cabal" | grep -v 'dist-newstyle/' | sort | xargs grep '^' | grep -v ':version:' | md5sum > ./build/project.summary
-
             BUILD_DIST="./dist-newstyle/build"
             BUILD_CABAL_VERSION=$(cabal --numeric-version)
-            BUILD_GHC_VERSION=$(cat cabal.project | grep 'with-compiler:' | head -n 1 | tr -s ' ' | cut -d' ' -f2 | cut -d'-' -f2)
-            if [ "$BUILD_GHC_VERSION" = "" ]; then BUILD_GHC_VERSION=$(ghc -- --numeric-version); fi
 
             BUILD_EXE_NAMES_VERSIONS=$(cat ./build/build-info.json | jq -r '. | select(."component-type" == "exe") | "\(."component-name"):\(."pkg-version")"')
             BUILD_EXE_NAMES=$(echo ${BUILD_EXE_NAMES_VERSIONS[@]} | cut -d ':' -f 1)
             BUILD_EXE_NAME=${BUILD_EXE_NAMES[0]}
             BUILD_EXE_VERSION=$(echo ${BUILD_EXE_NAMES_VERSIONS[0]} | cut -d ':' -f 2)
 
-            BUILD_ARCH=$(cat ./dist-newstyle/cache/plan.json | jq -r '.arch' | head -n 1)
-            BUILD_OS_NAME=$(cat ./dist-newstyle/cache/plan.json | jq -r '.os' | head -n 1)
-
             echo "$BUILD_GHC_VERSION" > ./build/ghc.version
-
-            echo "CACHE_VERSION=<< parameters.cache-version >>"         > ./build/build.env
-            echo "BUILD_GHC_VERSION=$BUILD_GHC_VERSION"                >> ./build/build.env
-            echo "BUILD_ARCH=$BUILD_ARCH"                              >> ./build/build.env
-            echo "BUILD_OS_NAME=$BUILD_OS_NAME"                        >> ./build/build.env
 
             echo "export BUILD_CABAL_VERSION=$BUILD_CABAL_VERSION"      > ./build/project.env
             echo "export BUILD_GHC_VERSION=$BUILD_GHC_VERSION"         >> ./build/project.env
@@ -253,9 +264,21 @@ jobs:
           steps: << parameters.after-checkout >>
 
       - override-ghc
-      - run: cabal v2-update -j<< parameters.cabal-threads >>
-      - set-project-env:
+
+      - capture-build-environment:
           cache-version: << parameters.cache-version >>
+
+      - restore_cache:
+          keys:
+            - dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "./build/project.summary" }}
+            - dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}
+            - dot-cabal-{{ checksum "./build/build.env" }}
+
+      - run:
+          name: Cabal update
+          command: cabal v2-update -j<< parameters.cabal-threads >>
+
+      - set-project-env
 
       - when:
           name: Checking if hackage would accept cabal file
@@ -270,12 +293,6 @@ jobs:
                       cabal check
                     )
                   done
-
-      - restore_cache:
-          keys:
-            - dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "./build/project.summary" }}
-            - dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}
-            - dot-cabal-{{ checksum "./build/build.env" }}
 
       - restore_cache:
           keys:
