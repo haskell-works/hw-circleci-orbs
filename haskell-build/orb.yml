@@ -253,7 +253,10 @@ jobs:
           steps: << parameters.after-checkout >>
 
       - override-ghc
-      - run: cabal v2-update -j<< parameters.cabal-threads >>
+      - run:
+          name: Cabal update
+          command: cabal v2-update -j<< parameters.cabal-threads >>
+
       - set-project-env:
           cache-version: << parameters.cache-version >>
 
@@ -271,11 +274,22 @@ jobs:
                     )
                   done
 
+      - run:
+          name: Save cabal snapshot
+          command: |
+            mv ~/.cabal ~/.cabal-snapshot
+
       - restore_cache:
           keys:
             - dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "./build/project.summary" }}
             - dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}
             - dot-cabal-{{ checksum "./build/build.env" }}
+
+      - run:
+          name: Restoring cabal snapshot
+          command: |
+            mkdir -p ~/.cabal
+            tar cvf - -C ~/.cabal-snapshot . | tar xvf - -C ~/.cabal
 
       - restore_cache:
           keys:
