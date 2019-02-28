@@ -162,7 +162,7 @@ commands:
             cp cabal.project disable.cabal.project
             cabal new-freeze --project-file enable.cabal.project --enable-tests --enable-benchmarks
             cabal new-freeze --project-file disable.cabal.project --disable-tests --disable-benchmarks
-            (diff disable.cabal.project.freeze enable.cabal.project.freeze || true) \
+            (diff <(sed 's/,*$//g' disable.cabal.project.freeze) <(sed 's/,*$//g' enable.cabal.project.freeze) || true) \
               | (grep "<" || true)                                                  \
               | (grep -v 'constraints:' || true)                                    \
               | tr -s ' '                                                           \
