@@ -3,9 +3,12 @@ version: 2.1
 description: Displays information about the build environment
 
 executors:
-  ubuntu-18_04:
+  circleci-cli:
     docker:
       - image: circleci/circleci-cli:latest
+  ubuntu-18_04:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.6.3:latest
 
 commands:
   display-cpu-info:
