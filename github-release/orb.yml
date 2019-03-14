@@ -41,6 +41,18 @@ common-params: &common-params
     description: Set true if the release is a pre-release.
     type: boolean
     default: false
+  aws-access-key-id:
+    description: AWS Access Key Id for uploading artefacts to S3 bucket
+    type: string
+    default: ${AWS_ACCESS_KEY_ID}
+  aws-secret-access-key:
+    description: AWS Secret Access Id for uploading artefacts to S3 bucket
+    type: string
+    default: ${AWS_SECRET_ACCESS_KEY}
+  artefacts-bucket:
+    description: The artefacts bucket to upload artefacts to
+    type: string
+    default: ${ARTEFACTS_BUCLET}
 
 commands:
   release-cabal:
