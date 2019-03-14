@@ -1,0 +1,30 @@
+version: 2.1
+
+description: Displays information about the build environment
+
+executors:
+  ubuntu-18_04:
+    docker:
+      - image: circleci/circleci-cli:latest
+
+commands:
+  display-cpu-info:
+    steps:
+      - run:
+          name: Display CPU Info
+          command: |
+            cat /proc/cpuinfo
+
+jobs:
+  display-cpu-info:
+    parameters:
+      executor:
+        description: |
+          Basic executor sufficient for displaying information about the CI build environment
+        type: executor
+        default: ubuntu-18_04
+
+    executor: << parameters.executor >>
+
+    steps:
+      - display-cpu-info
