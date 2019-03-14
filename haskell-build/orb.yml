@@ -36,7 +36,7 @@ commands:
           command: |
             test -f cabal.project || echo 'packages: .' > cabal.project
             test -f cabal.project.freeze || touch cabal.project.freeze
-            _ghc_ver=$(ghc --numeric-version)
+            _ghc_ver="$(ghc --numeric-version)"
             sed -i '/^with-compiler:/{h;s/:.*/: ghc-'"$_ghc_ver"'/};${x;/^$/{s//with-compiler: ghc-'"$_ghc_ver"'/;H};x}' cabal.project
 
   describe-build:
@@ -92,19 +92,19 @@ commands:
 
             find . -name "*.cabal" | grep -v 'dist-newstyle/' | sort | xargs grep '^' | grep -v ':version:' | md5sum > ./build/project.summary
 
-            BUILD_GHC_VERSION=$(cat cabal.project | grep 'with-compiler:' | head -n 1 | tr -s ' ' | cut -d' ' -f2 | cut -d'-' -f2)
-            if [ "$BUILD_GHC_VERSION" = "" ]; then BUILD_GHC_VERSION=$(ghc -- --numeric-version); fi
+            BUILD_GHC_VERSION="$(cat cabal.project | grep 'with-compiler:' | head -n 1 | tr -s ' ' | cut -d' ' -f2 | cut -d'-' -f2)"
+            if [ "$BUILD_GHC_VERSION" = "" ]; then BUILD_GHC_VERSION="$(ghc -- --numeric-version)"; fi
 
-            BUILD_ARCH=$(uname -m)
+            BUILD_ARCH="$(uname -m)"
 
-            BUILD_OS_NAME=$(uname -s | tr '[:upper:]' '[:lower:]')
+            BUILD_OS_NAME="$(uname -s | tr '[:upper:]' '[:lower:]')"
             if [ "$BUILD_OS_NAME" = "darwin" ]; then BUILD_OS_NAME="osx"; fi
 
-            echo "CACHE_VERSION=<< parameters.cache-version >>"         > ./build/build.env
-            echo "BUILD_GHC_VERSION=$BUILD_GHC_VERSION"                >> ./build/build.env
-            echo "BUILD_ARCH=$BUILD_ARCH"                              >> ./build/build.env
-            echo "BUILD_OS_NAME=$BUILD_OS_NAME"                        >> ./build/build.env
-            cat ./build/build.env >> $BASH_ENV
+            echo "CACHE_VERSION=\"<< parameters.cache-version >>\""     > ./build/build.env
+            echo "BUILD_GHC_VERSION=\"$BUILD_GHC_VERSION\""            >> ./build/build.env
+            echo "BUILD_ARCH=\"$BUILD_ARCH\""                          >> ./build/build.env
+            echo "BUILD_OS_NAME=\"$BUILD_OS_NAME\""                    >> ./build/build.env
+            cat ./build/build.env >> "$BASH_ENV"
 
   set-project-env:
     steps:
@@ -118,26 +118,26 @@ commands:
           name: Setting project environment
           command: |
             BUILD_DIST="./dist-newstyle/build"
-            BUILD_CABAL_VERSION=$(cabal --numeric-version)
+            BUILD_CABAL_VERSION="$(cabal --numeric-version)""
 
-            BUILD_EXE_NAMES_VERSIONS=$(cat ./build/build-info.json | jq -r '. | select(."component-type" == "exe") | "\(."component-name"):\(."pkg-version")"')
-            BUILD_EXE_NAMES=$(echo ${BUILD_EXE_NAMES_VERSIONS[@]} | cut -d ':' -f 1)
-            BUILD_EXE_NAME=${BUILD_EXE_NAMES[0]}
-            BUILD_EXE_VERSION=$(echo ${BUILD_EXE_NAMES_VERSIONS[0]} | cut -d ':' -f 2)
+            BUILD_EXE_NAMES_VERSIONS="$(cat ./build/build-info.json | jq -r '. | select(."component-type" == "exe") | "\(."component-name"):\(."pkg-version")"')""
+            BUILD_EXE_NAMES="$(echo ${BUILD_EXE_NAMES_VERSIONS[@]} | cut -d ':' -f 1)"
+            BUILD_EXE_NAME="${BUILD_EXE_NAMES[0]}"
+            BUILD_EXE_VERSION="$(echo "${BUILD_EXE_NAMES_VERSIONS[0]}" | cut -d ':' -f 2)"
 
             echo "$BUILD_GHC_VERSION" > ./build/ghc.version
 
-            echo "export BUILD_CABAL_VERSION=$BUILD_CABAL_VERSION"      > ./build/project.env
-            echo "export BUILD_GHC_VERSION=$BUILD_GHC_VERSION"         >> ./build/project.env
-            echo "export BUILD_ARCH=$BUILD_ARCH"                       >> ./build/project.env
-            echo "export BUILD_OS_NAME=$BUILD_OS_NAME"                 >> ./build/project.env
+            echo "export BUILD_CABAL_VERSION=\"$BUILD_CABAL_VERSION\""  > ./build/project.env
+            echo "export BUILD_GHC_VERSION=\"$BUILD_GHC_VERSION\""     >> ./build/project.env
+            echo "export BUILD_ARCH=\"$BUILD_ARCH\""                   >> ./build/project.env
+            echo "export BUILD_OS_NAME=\"$BUILD_OS_NAME\""             >> ./build/project.env
 
             echo "export BUILD_EXE_NAMES_VERSIONS=(${BUILD_EXE_NAMES_VERSIONS[*]})" >> ./build/project.env
             echo "export BUILD_EXE_NAMES=(${BUILD_EXE_NAMES[*]})"      >> ./build/project.env
-            echo "export BUILD_EXE_NAME=$BUILD_EXE_NAME"               >> ./build/project.env
-            echo "export BUILD_EXE_VERSION=$BUILD_EXE_VERSION"         >> ./build/project.env
+            echo "export BUILD_EXE_NAME=\"$BUILD_EXE_NAME\""           >> ./build/project.env
+            echo "export BUILD_EXE_VERSION=\"$BUILD_EXE_VERSION\""     >> ./build/project.env
 
-            cat ./build/project.env >> $BASH_ENV
+            cat ./build/project.env >> "$BASH_ENV"
             cat ./build/project.env
             source $BASH_ENV
 
