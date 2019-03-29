@@ -41,6 +41,10 @@ common-params: &common-params
     description: Set true if the release is a pre-release.
     type: boolean
     default: false
+  soft:
+    description: Stop uploading if the repository already has release with the specified tag.
+    type: boolean
+    default: true
 
 commands:
   release-cabal:
@@ -97,6 +101,7 @@ commands:
           artefacts-folder: << parameters.artefacts-folder >>
           draft: << parameters.draft >>
           pre-release: << parameters.pre-release >>
+          soft: << parameters.soft >>
 
   release:
     description: Create a new release.
@@ -125,6 +130,7 @@ commands:
           name: "Publishing a new release with artefacts"
           command: |
               changes=`cat << parameters.artefacts-folder >>/changelog.txt`
+              find << parameters.artefacts-folder >>/ -empty -type f -delete
               ghr \
                 --token << parameters.github-token >> \
                 --username ${CIRCLE_PROJECT_USERNAME} \
@@ -132,7 +138,7 @@ commands:
                 --commitish ${CIRCLE_SHA1} \
                 --name "<< parameters.title >>" \
                 --body "$changes" \
-                --soft \
+                <<# parameters.soft >> --soft <</ parameters.soft >> \
                 <<# parameters.draft >> --draft <</ parameters.draft >> \
                 <<# parameters.pre-release >> --prerelease <</ parameters.pre-release >> \
                   << parameters.tag >> << parameters.artefacts-folder >>
@@ -177,7 +183,6 @@ commands:
           command: |
             mkdir -p << parameters.artefacts-folder >>
             _changelog_file="<< parameters.artefacts-folder >>/changelog.txt"
-            echo $'Changes\n--------\n' > ${_changelog_file}
             _api_auth="Authorization: token << parameters.github-token >>"
             _api_url="https://api.github.com/repos/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}"
             _latest_release=$(curl -s -H "${_api_auth}" -X GET ${_api_url}/releases/latest | jq -r '.tag_name // ""')
@@ -265,6 +270,7 @@ jobs:
           artefacts-folder: << parameters.artefacts-folder >>
           draft: << parameters.draft >>
           pre-release: << parameters.pre-release >>
+          soft: << parameters.soft >>
 
   release:
     parameters:
@@ -323,6 +329,7 @@ jobs:
           artefacts-folder: << parameters.artefacts-folder >>
           draft: << parameters.draft >>
           pre-release: << parameters.pre-release >>
+          soft: << parameters.soft >>
 
 examples:
   basic-release:
