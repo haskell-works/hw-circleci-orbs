@@ -72,9 +72,11 @@ jobs:
       username:
         description: Hackage username
         type: string
+        default: ${HACKAGE_USER}
       password:
         description: Hackage password
         type: string
+        default: ${HACKAGE_PASS}
       publish:
         description: Publish the release. Without this flag a candidate will be created.
         type: boolean

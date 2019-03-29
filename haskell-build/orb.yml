@@ -37,7 +37,8 @@ commands:
             test -f cabal.project || echo 'packages: .' > cabal.project
             test -f cabal.project.freeze || touch cabal.project.freeze
             _ghc_ver=$(ghc --numeric-version)
-            sed -i '/^with-compiler:/{h;s/:.*/: ghc-'"$_ghc_ver"'/};${x;/^$/{s//with-compiler: ghc-'"$_ghc_ver"'/;H};x}' cabal.project
+            grep -v '^\s*with-compiler:' cabal.project > cabal.project.tmp; mv cabal.project.tmp cabal.project
+            echo "with-compiler: ghc-$_ghc_ver" >> cabal.project
 
   describe-build:
     description: Describes the build by providing info for all the local components in this build
@@ -150,7 +151,7 @@ commands:
 
             # Copy all the relevant executables and copy them to the dist folder
             cp `cat ./build/build-info.json | jq -r '. | select(."component-type" == "exe") | ."bin-file"'` ./build/dist
-            ls --recursive ./build
+            find ./build -type f
 
   check-immediate-dependencies-coherence:
     description: Check if --enable-test and --enable-benchmark are safe to use
