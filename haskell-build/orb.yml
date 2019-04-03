@@ -340,7 +340,7 @@ jobs:
                 name: Running unit tests
                 command: |
                   if cat ./build/build-info.json | jq --exit-status 'select(."component-type" == "test") | []' > /dev/null; then
-                    cabal v2-test all << parameters.cabal-test-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+                    cabal v2-test << parameters.cabal-test-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
                   else
                     echo "No tests found"
                   fi
