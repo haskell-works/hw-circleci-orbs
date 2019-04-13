@@ -84,6 +84,54 @@ commands:
             )" > ./build/build-info.json
             cat ./build/build-info.json
 
+  restore-binary-cache:
+    description: Capturing build environment (for caching)
+    parameters:
+      binary-cache-uri:
+        description: Binary cache URI.  This may be an S3 URI.
+        type: string
+        default: ${BINARY_CACHE_URI}
+      binary-cache-region:
+        description: Binary cache region.  This is one of the AWS regions.
+        type: string
+        default: ${BINARY_CACHE_REGION}
+      binary-cache-threads:
+        description: Number of threads for uploaded and downloading binary cache.
+        type: string
+        default: ${BINARY_CACHE_THREADS}
+
+    steps:
+      - run:
+          name: Restore binary cache
+          command: |
+            hw-ci-assist sync-from-archive --archive-uri "<< parameters.binary-cache-uri >>" \
+              <<# parameters.binary-cache-region >> --region "<< parameters.binary-cache-region >>" <</ parameters.binary-cache-region >> \
+              <<# parameters.binary-cache-threads >> --threads "<< parameters.binary-cache-threads >>" <</ parameters.binary-cache-threads >>
+
+  save-binary-cache:
+    description: Capturing build environment (for caching)
+    parameters:
+      binary-cache-uri:
+        description: Binary cache URI.  This may be an S3 URI.
+        type: string
+        default: ${BINARY_CACHE_URI}
+      binary-cache-region:
+        description: Binary cache region.  This is one of the AWS regions.
+        type: string
+        default: ${BINARY_CACHE_REGION}
+      binary-cache-threads:
+        description: Number of threads for uploaded and downloading binary cache.
+        type: string
+        default: ${BINARY_CACHE_THREADS}
+
+    steps:
+      - run:
+          name: Saving binary cache
+          command: |
+            hw-ci-assist sync-to-archive --archive-uri "<< parameters.binary-cache-uri >>" \
+              <<# parameters.binary-cache-region >> --region "<< parameters.binary-cache-region >>" <</ parameters.binary-cache-region >> \
+              <<# parameters.binary-cache-threads >> --threads "<< parameters.binary-cache-threads >>" <</ parameters.binary-cache-threads >>
+
   capture-build-environment:
     description: Capturing build environment (for caching)
     parameters:
@@ -239,14 +287,6 @@ jobs:
         description: Boolean for whether or not to check if the package has valid cabal file for distribution
         type: boolean
         default: true
-      binary-cache-uri:
-        description: Boolean for whether or not to use basic cache
-        type: boolean
-        default: true
-      binary-cache:
-        description: Boolean for whether or not to use binary cache
-        type: boolean
-        default: false
       write-result-workspace:
         description: Boolean for whether or not to persist results to a workspace.
         type: boolean
@@ -267,6 +307,18 @@ jobs:
         description: Optional steps to run after executing unit tests
         type: steps
         default: []
+      binary-cache-uri:
+        description: Binary cache URI.  This may be an S3 URI.
+        type: string
+        default: ${BINARY_CACHE_URI}
+      binary-cache-region:
+        description: Binary cache region.  This is one of the AWS regions.
+        type: string
+        default: ${BINARY_CACHE_REGION}
+      binary-cache-threads:
+        description: Number of threads for uploaded and downloading binary cache.
+        type: string
+        default: ${BINARY_CACHE_THREADS}
 
     executor: << parameters.executor >>
     steps:
@@ -333,7 +385,29 @@ jobs:
           steps:
             - check-immediate-dependencies-coherence
 
+      - run:
+          name: Configuring project
+          command: cabal v2-configure all << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG --dependencies-only -j<< parameters.cabal-threads >>
+
+      - when:
+          name: Restore binary cache
+          condition: << parameters.binary-cache-uri >>
+          steps:
+            - restore-binary-cache:
+                binary-cache-uri: << parameters.binary-cache-uri >>
+                binary-cache-region: << parameters.binary-cache-region >>
+                binary-cache-threads: << parameters.binary-cache-threads >>
+
       - run: cabal v2-build all << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG --dependencies-only -j<< parameters.cabal-threads >>
+
+      - when:
+          name: Save binary cache
+          condition: << parameters.binary-cache-uri >>
+          steps:
+            - save-binary-cache:
+                binary-cache-uri: << parameters.binary-cache-uri >>
+                binary-cache-region: << parameters.binary-cache-region >>
+                binary-cache-threads: << parameters.binary-cache-threads >>
 
       - unless:
           name: Save basic cache
@@ -348,8 +422,30 @@ jobs:
                 paths: [~/.cabal/packages, ~/.cabal/store]
 
       - run:
+          name: Configuring project
+          command: cabal v2-configure all << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+
+      - when:
+          name: Restore binary cache
+          condition: << parameters.binary-cache-uri >>
+          steps:
+            - restore-binary-cache:
+                binary-cache-uri: << parameters.binary-cache-uri >>
+                binary-cache-region: << parameters.binary-cache-region >>
+                binary-cache-threads: << parameters.binary-cache-threads >>
+
+      - run:
           name: Building project
           command: cabal v2-build all << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+
+      - when:
+          name: Save binary cache
+          condition: << parameters.binary-cache-uri >>
+          steps:
+            - save-binary-cache:
+                binary-cache-uri: << parameters.binary-cache-uri >>
+                binary-cache-region: << parameters.binary-cache-region >>
+                binary-cache-threads: << parameters.binary-cache-threads >>
 
       - when:
           name: Running after-build hook steps
