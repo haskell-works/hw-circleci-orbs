@@ -332,19 +332,6 @@ jobs:
 
       - override-ghc
 
-      - unless:
-          name: Restore basic cache
-          condition: << parameters.binary-cache-uri >>
-          steps:
-            - capture-build-environment:
-                cache-version: << parameters.cache-version >>
-
-            - restore_cache:
-                keys:
-                  - dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "./build/project.summary" }}
-                  - dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}
-                  - dot-cabal-{{ checksum "./build/build.env" }}
-
       - run:
           name: Cabal update
           command: cabal v2-update -j<< parameters.cabal-threads >>
@@ -365,14 +352,6 @@ jobs:
                     )
                   done
 
-      - unless:
-          name: Restore basic cache
-          condition: << parameters.binary-cache-uri >>
-          steps:
-            - restore_cache:
-                keys:
-                  - dist-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "./build/project.summary" }}
-                  - dist-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}
 
       - when:
           name: Running before-build hook steps
@@ -408,18 +387,6 @@ jobs:
                 binary-cache-uri: << parameters.binary-cache-uri >>
                 binary-cache-region: << parameters.binary-cache-region >>
                 binary-cache-threads: << parameters.binary-cache-threads >>
-
-      - unless:
-          name: Save basic cache
-          condition: << parameters.binary-cache-uri >>
-          steps:
-            - save_cache:
-                key: dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}
-                paths: [~/.cabal/packages, ~/.cabal/store]
-
-            - save_cache:
-                key: dot-cabal-{{ checksum "./build/build.env" }}
-                paths: [~/.cabal/packages, ~/.cabal/store]
 
       - run:
           name: Configuring project
@@ -468,22 +435,6 @@ jobs:
           name: Running after-test hook steps
           condition: << parameters.after-test >>
           steps: << parameters.after-test >>
-
-      - unless:
-          name: Restore basic cache
-          condition: << parameters.binary-cache-uri >>
-          steps:
-            - save_cache:
-                key: dist-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}
-                paths: [./dist-newstyle]
-
-            - save_cache:
-                key: dist-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "./build/project.summary" }}
-                paths: [./dist-newstyle]
-
-            - save_cache:
-                key: dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "./build/project.summary" }}
-                paths: [~/.cabal/packages, ~/.cabal/store]
 
       - when:
           condition: << parameters.write-result-workspace >>
