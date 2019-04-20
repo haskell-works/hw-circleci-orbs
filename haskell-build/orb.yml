@@ -333,8 +333,34 @@ jobs:
       - override-ghc
 
       - run:
+          name: Set package snapshot typestamp
+          command: date +%Y/%m/%d > date.txt
+
+      - restore_cache:
+          keys:
+            - dot-cabal-packages-{{ checksum "date.txt" }}-ukrqtde
+
+      - run:
           name: Cabal update
-          command: cabal v2-update -j<< parameters.cabal-threads >>
+          command: |
+            if [ -f ~/.cabal/packages/hackage.haskell.org/01-index.tar.gz ] && [ ! -f ~/.cabal/packages/hackage.haskell.org/01-index.tar ]; then
+              gunzip -c ~/.cabal/packages/hackage.haskell.org/01-index.tar.gz > ~/.cabal/packages/hackage.haskell.org/01-index.tar
+            fi
+            cabal v2-update -j<< parameters.cabal-threads >>
+
+      - save_cache:
+          key: dot-cabal-packages-{{ checksum "date.txt" }}-ukrqtde
+          paths:
+            - ~/.cabal/config
+            - ~/.cabal/packages/hackage.haskell.org/01-index.cache
+            - ~/.cabal/packages/hackage.haskell.org/hackage-security-lock
+            - ~/.cabal/packages/hackage.haskell.org/01-index.tar.gz
+            - ~/.cabal/packages/hackage.haskell.org/snapshot.json
+            - ~/.cabal/packages/hackage.haskell.org/01-index.timestamp
+            - ~/.cabal/packages/hackage.haskell.org/mirrors.json
+            - ~/.cabal/packages/hackage.haskell.org/timestamp.json
+            - ~/.cabal/packages/hackage.haskell.org/01-index.tar.idx
+            - ~/.cabal/packages/hackage.haskell.org/root.json
 
       - set-project-env
 
