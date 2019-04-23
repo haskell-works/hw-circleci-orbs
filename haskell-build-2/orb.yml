@@ -1,0 +1,551 @@
+version: 2.1
+
+description: Builds a Haskell application using cabal v2-*.
+
+executors:
+  ghc-7_10_3:
+    docker:
+      - image: quay.io/haskell_works/ghc-7.10.3:latest
+  ghc-8_0_2:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.0.2:latest
+  ghc-8_2_2:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.2.2:latest
+  ghc-8_4_4:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.4.4:latest
+  ghc-8_4_3:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.4.3:latest
+  ghc-8_6_3:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.6.3:latest
+  ghc-8_6_4:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.6.4:latest
+  ghc-8_6_5:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.6.5:latest
+  ghc-844:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.4.4:latest
+  ghc-863:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.6.3:latest
+
+commands:
+  override-ghc:
+    steps:
+      - run:
+          name: Override GHC version
+          command: |
+            test -f cabal.project || echo 'packages: .' > cabal.project
+            test -f cabal.project.freeze || touch cabal.project.freeze
+            _ghc_ver=$(ghc --numeric-version)
+            grep -v '^\s*with-compiler:' cabal.project > cabal.project.tmp; mv cabal.project.tmp cabal.project
+            echo "with-compiler: ghc-$_ghc_ver" >> cabal.project
+
+  describe-build:
+    description: Describes the build by providing info for all the local components in this build
+    steps:
+      - run:
+          name: Describing the build (./build/build-info.json)
+          command: |
+            mkdir -p ./build
+            cat ./dist-newstyle/cache/plan.json | jq -r "$(cat \<<-EOF
+              ."install-plan"[]
+            | select(."pkg-src"."type" == "local")
+            | . as \$x
+            | if ."component-name"
+                then
+                  { "pkg-name": ."pkg-name"
+                  , "component-id": ."component-name"
+                  , "path": ."pkg-src".path
+                  , "bin-file": ."bin-file"
+                  , "pkg-version": ."pkg-version"
+                  , "component-type": ."component-name" | split(":")[0]
+                  , "component-name": ."component-name" | split(":")[1]
+                  }
+                else
+                    ."components"
+                  | to_entries[]
+                  | { "component-id": ."key"
+                    , "component-type": ."key" | split(":")[0]
+                    , "component-name": ."key" | split(":")[1]
+                    , "bin-file": .value."bin-file"
+                    , "pkg-name": \$x."pkg-name"
+                    , "pkg-version": \$x."pkg-version"
+                    , "path": \$x."pkg-src".path
+                    }
+                end
+            | select(."component-type" != "setup")
+            EOF
+            )" > ./build/build-info.json
+            cat ./build/build-info.json
+
+  install-binary-cache-tool:
+    parameters:
+      cache-tool-tag:
+        description: |
+          Cache tool version (tag name or "latest").  Should be at least v0.2.0.1.
+          For list of tags see https://github.com/haskell-works/hw-ci-assist/tags
+
+        type: string
+    steps:
+      - run:
+          name: Install Binary cache tool
+          command: |
+            if [ "<< parameters.cache-tool-tag >>" = "latest" ]; then
+              CACHE_TOOL_TAG=$(curl -s -X GET https://api.github.com/repos/haskell-works/hw-ci-assist/releases/tags/latest | jq -rc .tag_name)
+            else
+              CACHE_TOOL_TAG="<< parameters.cache-tool-tag >>"
+            fi
+            curl -Ls https://github.com/haskell-works/hw-ci-assist/releases/download/${CACHE_TOOL_TAG}/hw-ci-assist_${BUILD_ARCH}_${BUILD_OS_NAME}.tar.gz | tar -xvz -C /tmp/
+            sudo cp /tmp/hw-ci-assist /usr/local/bin/
+            hw-ci-assist --help
+
+  restore-binary-cache:
+    description: Capturing build environment (for caching)
+    parameters:
+      binary-cache-uri:
+        description: Binary cache URI.  This may be an S3 URI.
+        type: string
+        default: ${BINARY_CACHE_URI}
+      binary-cache-region:
+        description: Binary cache region.  This is one of the AWS regions.
+        type: string
+        default: ${BINARY_CACHE_REGION}
+      binary-cache-threads:
+        description: Number of threads for uploaded and downloading binary cache.
+        type: string
+        default: ${BINARY_CACHE_THREADS}
+
+    steps:
+      - run:
+          name: Restore binary cache
+          command: |
+            hw-ci-assist sync-from-archive --archive-uri "<< parameters.binary-cache-uri >>" \
+              <<# parameters.binary-cache-region >> --region "<< parameters.binary-cache-region >>" <</ parameters.binary-cache-region >> \
+              <<# parameters.binary-cache-threads >> --threads "<< parameters.binary-cache-threads >>" <</ parameters.binary-cache-threads >>
+
+  save-binary-cache:
+    description: Capturing build environment (for caching)
+    parameters:
+      binary-cache-uri:
+        description: Binary cache URI.  This may be an S3 URI.
+        type: string
+        default: ${BINARY_CACHE_URI}
+      binary-cache-region:
+        description: Binary cache region.  This is one of the AWS regions.
+        type: string
+        default: ${BINARY_CACHE_REGION}
+      binary-cache-threads:
+        description: Number of threads for uploaded and downloading binary cache.
+        type: string
+        default: ${BINARY_CACHE_THREADS}
+
+    steps:
+      - run:
+          name: Saving binary cache
+          command: |
+            hw-ci-assist sync-to-archive --archive-uri "<< parameters.binary-cache-uri >>" \
+              <<# parameters.binary-cache-region >> --region "<< parameters.binary-cache-region >>" <</ parameters.binary-cache-region >> \
+              <<# parameters.binary-cache-threads >> --threads "<< parameters.binary-cache-threads >>" <</ parameters.binary-cache-threads >>
+
+  capture-build-environment:
+    description: Capturing build environment (for caching)
+    parameters:
+      cache-version:
+        description: Cache version. Update this value when you want to start with new build caches.
+        type: string
+
+    steps:
+      - run:
+          name: Capture build environment
+          command: |
+            mkdir -p ./build
+
+            find . -name "*.cabal" | grep -v 'dist-newstyle/' | sort | xargs grep '^' | grep -v ':version:' | md5sum > ./build/project.summary
+
+            BUILD_GHC_VERSION=$(cat cabal.project | grep 'with-compiler:' | head -n 1 | tr -s ' ' | cut -d' ' -f2 | cut -d'-' -f2)
+            if [ "$BUILD_GHC_VERSION" = "" ]; then BUILD_GHC_VERSION=$(ghc -- --numeric-version); fi
+
+            BUILD_ARCH=$(uname -m)
+
+            BUILD_OS_NAME=$(uname -s | tr '[:upper:]' '[:lower:]')
+            if [ "$BUILD_OS_NAME" = "darwin" ]; then BUILD_OS_NAME="osx"; fi
+
+            echo "CACHE_VERSION=<< parameters.cache-version >>"         > ./build/build.env
+            echo "BUILD_GHC_VERSION=$BUILD_GHC_VERSION"                >> ./build/build.env
+            echo "BUILD_ARCH=$BUILD_ARCH"                              >> ./build/build.env
+            echo "BUILD_OS_NAME=$BUILD_OS_NAME"                        >> ./build/build.env
+            cat ./build/build.env >> $BASH_ENV
+
+  set-project-env:
+    steps:
+      - run:
+          name: Configuring the build
+          command: cabal v2-configure
+
+      - describe-build
+
+      - run:
+          name: Setting project environment
+          command: |
+            BUILD_DIST="./dist-newstyle/build"
+            BUILD_CABAL_VERSION=$(cabal --numeric-version)
+
+            BUILD_EXE_NAMES_VERSIONS=$(cat ./build/build-info.json | jq -r '. | select(."component-type" == "exe") | "\(."component-name"):\(."pkg-version")"')
+            BUILD_EXE_NAMES=$(echo ${BUILD_EXE_NAMES_VERSIONS[@]} | cut -d ':' -f 1)
+            BUILD_EXE_NAME=${BUILD_EXE_NAMES[0]}
+            BUILD_EXE_VERSION=$(echo ${BUILD_EXE_NAMES_VERSIONS[0]} | cut -d ':' -f 2)
+
+            echo "$BUILD_GHC_VERSION" > ./build/ghc.version
+
+            echo "export BUILD_CABAL_VERSION=$BUILD_CABAL_VERSION"      > ./build/project.env
+            echo "export BUILD_GHC_VERSION=$BUILD_GHC_VERSION"         >> ./build/project.env
+            echo "export BUILD_ARCH=$BUILD_ARCH"                       >> ./build/project.env
+            echo "export BUILD_OS_NAME=$BUILD_OS_NAME"                 >> ./build/project.env
+
+            echo "export BUILD_EXE_NAMES_VERSIONS=(${BUILD_EXE_NAMES_VERSIONS[*]})" >> ./build/project.env
+            echo "export BUILD_EXE_NAMES=(${BUILD_EXE_NAMES[*]})"      >> ./build/project.env
+            echo "export BUILD_EXE_NAME=$BUILD_EXE_NAME"               >> ./build/project.env
+            echo "export BUILD_EXE_VERSION=$BUILD_EXE_VERSION"         >> ./build/project.env
+
+            cat ./build/project.env >> $BASH_ENV
+            cat ./build/project.env
+            source $BASH_ENV
+
+  copy-bin:
+    steps:
+      - run:
+          name: Copying executable
+          command: |
+            mkdir -p ./build/dist
+
+            # Copy all the relevant executables and copy them to the dist folder
+            cp `cat ./build/build-info.json | jq -r '. | select(."component-type" == "exe") | ."bin-file"'` ./build/dist
+            find ./build -type f
+
+  check-immediate-dependencies-coherence:
+    description: Check if --enable-test and --enable-benchmark are safe to use
+    steps:
+      - run:
+          name: Check immediate dependencies coherence
+          command: |
+            cp cabal.project enable.cabal.project
+            cp cabal.project disable.cabal.project
+            cabal new-freeze --project-file enable.cabal.project --enable-tests --enable-benchmarks
+            cabal new-freeze --project-file disable.cabal.project --disable-tests --disable-benchmarks
+            (diff <(sed 's/,*$//g' disable.cabal.project.freeze) <(sed 's/,*$//g' enable.cabal.project.freeze) || true) \
+              | (grep "<" || true)                                                  \
+              | (grep -v 'constraints:' || true)                                    \
+              | tr -s ' '                                                           \
+              | cut -d ' ' -f 2                                                     \
+              | cut -d '.' -f 2                                                     \
+              | sort > /tmp/changing-dependencies.txt
+            cabal-plan info | sed -n '/^CompNameLib$/,/^$/ p'                       \
+              | (grep '  ' || true)                                                 \
+              | sed 's|^  ||g'                                                      \
+              | rev                                                                 \
+              | cut -d '-' -f 2-                                                    \
+              | rev                                                                 \
+              | sort > /tmp/immediate-dependencies.txt
+            touch .circleci/whitelist-dependencies.txt
+            comm -13 <(sort .circleci/whitelist-dependencies.txt) /tmp/immediate-dependencies.txt > /tmp/important-dependencies.txt
+            comm -12 /tmp/changing-dependencies.txt /tmp/important-dependencies.txt > /tmp/incoherent-dependencies.txt
+
+            echo "Changing dependencies: "
+            sed 's|^|  |g' /tmp/changing-dependencies.txt
+            echo "Whitelisted dependencies: "
+            sed 's|^|  |g' .circleci/whitelist-dependencies.txt
+            echo "Incoherent dependencies: "
+            sed 's|^|  |g' /tmp/incoherent-dependencies.txt
+
+            if [ "$(cat /tmp/incoherent-dependencies.txt | xargs)" != "" ]; then
+              echo "Error: Found incoherent immediate dependencies"
+              exit 1
+            fi
+            echo "export _BUILD_ENABLE_TESTS_FLAG=--enable-tests" >> $BASH_ENV
+            echo "export _BUILD_ENABLE_BENCHMARKS_FLAG=--enable-benchmarks" >> $BASH_ENV
+            source $BASH_ENV
+
+jobs:
+  build:
+    parameters:
+      executor:
+        description: |
+          An executor that contains GHC and cabal-install (supporting v2-* commands family.)
+          "ghc-8_4_4" and "ghc-8_6_3" are provided, but custom executors can be used (see examples).
+        type: executor
+        default: ghc-8_4_4
+      cache-version:
+        description: Cache version. Update this value when you want to start with new build caches.
+        type: string
+        default: ${CACHE_VERSION:-cache-01}
+      cabal-threads:
+        description: Number of Cabal threads.
+        type: integer
+        default: 4
+      cabal-build-extra:
+        description: Extra CLI parameters to pass to the "cabal v2-build" command.
+        type: string
+        default: ""
+      cabal-test-extra:
+        description: Extra CLI parameters to pass to the "cabal v2-test" command.
+        type: string
+        default: ""
+      fail-incoherent-builds:
+        description: Fail the build when immediate dependencies are incoherent
+        type: boolean
+        default: true
+      run-tests:
+        description: Boolean for whether or not to run unit tests
+        type: boolean
+        default: true
+      run-check:
+        description: Boolean for whether or not to check if the package has valid cabal file for distribution
+        type: boolean
+        default: true
+      write-result-workspace:
+        description: Boolean for whether or not to persist results to a workspace.
+        type: boolean
+        default: false
+      after-checkout:
+        description: Optional steps to run after checkout
+        type: steps
+        default: []
+      before-build:
+        description: Optional steps to run after cabal update but before build
+        type: steps
+        default: []
+      after-build:
+        description: Optional steps to run after build but before running tests
+        type: steps
+        default: []
+      after-test:
+        description: Optional steps to run after executing unit tests
+        type: steps
+        default: []
+      binary-cache-uri:
+        description: Binary cache URI.  This may be an S3 URI.
+        type: string
+        default: ${BINARY_CACHE_URI}
+      binary-cache-region:
+        description: Binary cache region.  This is one of the AWS regions.
+        type: string
+        default: ${BINARY_CACHE_REGION}
+      binary-cache-threads:
+        description: Number of threads for uploaded and downloading binary cache.
+        type: string
+        default: ${BINARY_CACHE_THREADS}
+
+    executor: << parameters.executor >>
+    steps:
+      - checkout
+      - run: git fetch --unshallow || true
+
+      - when:
+          name: Running after-checkout hook steps
+          condition: << parameters.after-checkout >>
+          steps: << parameters.after-checkout >>
+
+      - override-ghc
+
+      - run:
+          name: Set package snapshot typestamp
+          command: date +%Y/%m/%d > date.txt
+
+      - restore_cache:
+          keys:
+            - dot-cabal-packages-{{ checksum "date.txt" }}-ukrqtde
+
+      - run:
+          name: Cabal update
+          command: |
+            if [ -f ~/.cabal/packages/hackage.haskell.org/01-index.tar.gz ] && [ ! -f ~/.cabal/packages/hackage.haskell.org/01-index.tar ]; then
+              gunzip -c ~/.cabal/packages/hackage.haskell.org/01-index.tar.gz > ~/.cabal/packages/hackage.haskell.org/01-index.tar
+            fi
+            cabal v2-update -j<< parameters.cabal-threads >>
+
+      - save_cache:
+          key: dot-cabal-packages-{{ checksum "date.txt" }}-ukrqtde
+          paths:
+            - ~/.cabal/config
+            - ~/.cabal/packages/hackage.haskell.org/01-index.cache
+            - ~/.cabal/packages/hackage.haskell.org/hackage-security-lock
+            - ~/.cabal/packages/hackage.haskell.org/01-index.tar.gz
+            - ~/.cabal/packages/hackage.haskell.org/snapshot.json
+            - ~/.cabal/packages/hackage.haskell.org/01-index.timestamp
+            - ~/.cabal/packages/hackage.haskell.org/mirrors.json
+            - ~/.cabal/packages/hackage.haskell.org/timestamp.json
+            - ~/.cabal/packages/hackage.haskell.org/01-index.tar.idx
+            - ~/.cabal/packages/hackage.haskell.org/root.json
+
+      - set-project-env
+
+      - when:
+          name: Checking if hackage would accept cabal file
+          condition: << parameters.run-check >>
+          steps:
+            - run:
+                name: Running cabal check (can be disabled in CI with run-check=false)
+                command: |
+                  for x in $(cat ./build/build-info.json | jq -r .path | sort -u); do
+                    ( echo "\n# Running cabal check in $x"
+                      cd "$x"
+                      cabal check
+                    )
+                  done
+
+
+      - when:
+          name: Running before-build hook steps
+          condition: << parameters.before-build >>
+          steps: << parameters.before-build >>
+
+      - when:
+          name: Check immediate dependencies coherence
+          condition: << parameters.fail-incoherent-builds >>
+          steps:
+            - check-immediate-dependencies-coherence
+
+      - run:
+          name: Configuring project
+          command: cabal v2-configure all << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG --dependencies-only -j<< parameters.cabal-threads >>
+
+      - when:
+          name: Restore binary cache
+          condition: << parameters.binary-cache-uri >>
+          steps:
+            - restore-binary-cache:
+                binary-cache-uri: << parameters.binary-cache-uri >>
+                binary-cache-region: << parameters.binary-cache-region >>
+                binary-cache-threads: << parameters.binary-cache-threads >>
+
+      - run: cabal v2-build all << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG --dependencies-only -j<< parameters.cabal-threads >>
+
+      - when:
+          name: Save binary cache
+          condition: << parameters.binary-cache-uri >>
+          steps:
+            - save-binary-cache:
+                binary-cache-uri: << parameters.binary-cache-uri >>
+                binary-cache-region: << parameters.binary-cache-region >>
+                binary-cache-threads: << parameters.binary-cache-threads >>
+
+      - run:
+          name: Configuring project
+          command: cabal v2-configure all << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+
+      - when:
+          name: Restore binary cache
+          condition: << parameters.binary-cache-uri >>
+          steps:
+            - restore-binary-cache:
+                binary-cache-uri: << parameters.binary-cache-uri >>
+                binary-cache-region: << parameters.binary-cache-region >>
+                binary-cache-threads: << parameters.binary-cache-threads >>
+
+      - run:
+          name: Building project
+          command: cabal v2-build all << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+
+      - when:
+          name: Save binary cache
+          condition: << parameters.binary-cache-uri >>
+          steps:
+            - save-binary-cache:
+                binary-cache-uri: << parameters.binary-cache-uri >>
+                binary-cache-region: << parameters.binary-cache-region >>
+                binary-cache-threads: << parameters.binary-cache-threads >>
+
+      - when:
+          name: Running after-build hook steps
+          condition: << parameters.after-build >>
+          steps: << parameters.after-build >>
+
+      - when:
+          condition: << parameters.run-tests >>
+          steps:
+            - run:
+                name: Running unit tests
+                command: |
+                  if cat ./build/build-info.json | jq --exit-status 'select(."component-type" == "test") | []' > /dev/null; then
+                    cabal v2-test all << parameters.cabal-test-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+                  else
+                    echo "No tests found"
+                  fi
+
+      - when:
+          name: Running after-test hook steps
+          condition: << parameters.after-test >>
+          steps: << parameters.after-test >>
+
+      - when:
+          condition: << parameters.write-result-workspace >>
+          steps:
+            - copy-bin
+            - persist_to_workspace:
+                root: .
+                paths: [build]
+
+examples:
+  build-application:
+    description: |
+      A typical workflow for building Haskell applications.
+      It uses the default executor (GHC 8.4.4) to build an app.
+    usage:
+      version: 2.1
+
+      orbs:
+        haskell: haskell-works/haskell-build@1.0.1
+
+      workflows:
+        build-my-application:
+          jobs:
+            - haskell/build
+
+  build-library:
+    description: |
+      Building a library often requires building and testing it with multiple versions of GHC.
+      It also does not require producing binaries, so in this example we disable writing a workspace.
+
+    usage:
+      version: 2.1
+
+      orbs:
+        haskell: haskell-works/haskell-build@1.0.0 # use latest version
+
+      workflows:
+        build-my-library:
+          jobs:
+            - haskell/build:
+                name: GHC 8.4.4
+                executor: haskell/ghc-8_4_4
+
+            - haskell/build:
+                name: GHC 8.6.3
+                executor: haskell/ghc-8_6_3
+
+  life-cycle-hooks:
+    description: |
+      Use custom lifecycle hooks to add project-specific steps to a build process
+
+    usage:
+      version: 2.1
+
+      orbs:
+        haskell: haskell-works/haskell-build@1.0.0 # use latest version
+
+      workflows:
+        build-my-application:
+          jobs:
+            - haskell/build:
+                before-build:
+                  - run: echo "I run before build"
+                after-build:
+                  - run: echo "I run after build"
+                after-test:
+                  - run: echo "I run after tests"
