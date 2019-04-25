@@ -89,7 +89,7 @@ commands:
       cache-tool-tag:
         description: |
           Cache tool version (tag name or "latest").  Should be at least v0.2.0.1.
-          For list of tags see https://github.com/haskell-works/hw-ci-assist/tags
+          For list of tags see https://github.com/haskell-works/cabal-cache/tags
 
         type: string
     steps:
@@ -97,13 +97,13 @@ commands:
           name: Install Binary cache tool
           command: |
             if [ "<< parameters.cache-tool-tag >>" = "latest" ]; then
-              CACHE_TOOL_TAG=$(curl -s -X GET https://api.github.com/repos/haskell-works/hw-ci-assist/releases/tags/latest | jq -rc .tag_name)
+              CACHE_TOOL_TAG=$(curl -s -X GET https://api.github.com/repos/haskell-works/cabal-cache/releases/tags/latest | jq -rc .tag_name)
             else
               CACHE_TOOL_TAG="<< parameters.cache-tool-tag >>"
             fi
-            curl -Ls https://github.com/haskell-works/hw-ci-assist/releases/download/${CACHE_TOOL_TAG}/hw-ci-assist_${BUILD_ARCH}_${BUILD_OS_NAME}.tar.gz | tar -xvz -C /tmp/
-            sudo cp /tmp/hw-ci-assist /usr/local/bin/
-            hw-ci-assist --help
+            curl -Ls https://github.com/haskell-works/cabal-cache/releases/download/${CACHE_TOOL_TAG}/cabal-cache_${BUILD_ARCH}_${BUILD_OS_NAME}.tar.gz | tar -xvz -C /tmp/
+            sudo cp /tmp/cabal-cache /usr/local/bin/
+            cabal-cache --help
 
   restore-binary-cache:
     description: Capturing build environment (for caching)
@@ -125,7 +125,7 @@ commands:
       - run:
           name: Restore binary cache
           command: |
-            hw-ci-assist sync-from-archive --archive-uri "<< parameters.binary-cache-uri >>" \
+            cabal-cache sync-from-archive --archive-uri "<< parameters.binary-cache-uri >>" \
               <<# parameters.binary-cache-region >> --region "<< parameters.binary-cache-region >>" <</ parameters.binary-cache-region >> \
               <<# parameters.binary-cache-threads >> --threads "<< parameters.binary-cache-threads >>" <</ parameters.binary-cache-threads >>
 
@@ -149,7 +149,7 @@ commands:
       - run:
           name: Saving binary cache
           command: |
-            hw-ci-assist sync-to-archive --archive-uri "<< parameters.binary-cache-uri >>" \
+            cabal-cache sync-to-archive --archive-uri "<< parameters.binary-cache-uri >>" \
               <<# parameters.binary-cache-region >> --region "<< parameters.binary-cache-region >>" <</ parameters.binary-cache-region >> \
               <<# parameters.binary-cache-threads >> --threads "<< parameters.binary-cache-threads >>" <</ parameters.binary-cache-threads >>
 
