@@ -357,6 +357,9 @@ jobs:
           name: Set package snapshot typestamp
           command: date +%Y/%m/%d > date.txt
 
+      - capture-build-environment:
+          cache-version: << parameters.cache-version >>
+
       - restore_cache:
           keys:
             - dot-cabal-packages-{{ checksum "date.txt" }}-ukrqtde

@@ -112,6 +112,7 @@ commands:
             echo "BUILD_ARCH=$BUILD_ARCH"                              >> ./build/build.env
             echo "BUILD_OS_NAME=$BUILD_OS_NAME"                        >> ./build/build.env
             cat ./build/build.env >> $BASH_ENV
+            cat ./build/build.env
 
   set-project-env:
     steps:
