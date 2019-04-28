@@ -503,7 +503,7 @@ examples:
       version: 2.1
 
       orbs:
-        haskell: haskell-works/haskell-build@1.6.6
+        haskell: haskell-works/haskell-build-2@1.6.8
 
       workflows:
         build-my-application:
@@ -519,7 +519,7 @@ examples:
       version: 2.1
 
       orbs:
-        haskell: haskell-works/haskell-build@1.6.6 # use latest version
+        haskell: haskell-works/haskell-build-2@1.6.8 # use latest version
 
       workflows:
         build-my-library:
@@ -540,7 +540,7 @@ examples:
       version: 2.1
 
       orbs:
-        haskell: haskell-works/haskell-build@1.6.6 # use latest version
+        haskell: haskell-works/haskell-build-2@1.6.8 # use latest version
 
       workflows:
         build-my-application:
