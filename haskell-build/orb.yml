@@ -150,15 +150,21 @@ commands:
             source $BASH_ENV
 
   copy-bin:
+    parameters:
+      workspace-dir:
+        description: Result workspace directory name
+        type: string
     steps:
       - run:
           name: Copying executable
           command: |
             mkdir -p ./build/dist
+            mkdir -p $(dirname << parameters.workspace-dir >>)
 
             # Copy all the relevant executables and copy them to the dist folder
             cp `cat ./build/build-info.json | jq -r '. | select(."component-type" == "exe") | ."bin-file"'` ./build/dist
-            find ./build -type f
+            mv ./build ./<< parameters.workspace-dir >>
+            find ./<< parameters.workspace-dir >> -type f
 
   check-immediate-dependencies-coherence:
     description: Check if --enable-test and --enable-benchmark are safe to use
@@ -277,6 +283,10 @@ jobs:
         description: Boolean for whether or not to persist results to a workspace.
         type: boolean
         default: false
+      workspace-dir:
+        description: Result workspace directory name
+        type: string
+        default: build
       after-checkout:
         description: Optional steps to run after checkout
         type: steps
@@ -432,10 +442,11 @@ jobs:
       - when:
           condition: << parameters.write-result-workspace >>
           steps:
-            - copy-bin
+            - copy-bin:
+                workspace-dir: << parameters.workspace-dir >>
             - persist_to_workspace:
                 root: .
-                paths: [build]
+                paths: [<< parameters.workspace-dir >>]
 
 examples:
   build-application:
