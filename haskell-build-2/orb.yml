@@ -84,26 +84,27 @@ commands:
             )" > ./build/build-info.json
             cat ./build/build-info.json
 
-  install-binary-cache-tool:
+  install-cabal-cache:
     parameters:
-      cache-tool-tag:
+      tag:
         description: |
-          Cache tool version (tag name or "latest").  Should be at least v0.2.0.1.
+          Cache tool version (tag name or "latest").  Should be at least v1.0.0.1.
           For list of tags see https://github.com/haskell-works/cabal-cache/tags
 
         type: string
     steps:
       - run:
-          name: Install Binary cache tool
+          name: Install binary cache tool (cabal-cache)
           command: |
-            if [ "<< parameters.cache-tool-tag >>" = "latest" ]; then
-              CACHE_TOOL_TAG=$(curl -s -X GET https://api.github.com/repos/haskell-works/cabal-cache/releases/tags/latest | jq -rc .tag_name)
+            if [ "<< parameters.tag >>" = "latest" ]; then
+              CACHE_TOOL_TAG=$(curl -s -X GET https://api.github.com/repos/haskell-works/cabal-cache/releases/latest | jq -rc .tag_name)
             else
-              CACHE_TOOL_TAG="<< parameters.cache-tool-tag >>"
+              CACHE_TOOL_TAG="<< parameters.tag >>"
             fi
+            echo "Downloading: https://github.com/haskell-works/cabal-cache/releases/download/${CACHE_TOOL_TAG}/cabal-cache_${BUILD_ARCH}_${BUILD_OS_NAME}.tar.gz"
             curl -Ls https://github.com/haskell-works/cabal-cache/releases/download/${CACHE_TOOL_TAG}/cabal-cache_${BUILD_ARCH}_${BUILD_OS_NAME}.tar.gz | tar -xvz -C /tmp/
-            sudo cp /tmp/cabal-cache /usr/local/bin/
-            cabal-cache --help
+            sudo cp /tmp/cabal-cache /root/.local/bin/
+            cabal-cache version
 
   restore-binary-cache:
     description: Capturing build environment (for caching)
@@ -328,6 +329,10 @@ jobs:
         description: Optional steps to run after executing unit tests
         type: steps
         default: []
+      cabal-cache-tag:
+        description: Cabal cache tag
+        type: string
+        default: ${BINARY_CACHE_URI}
       binary-cache-uri:
         description: Binary cache URI.  This may be an S3 URI.
         type: string
@@ -344,6 +349,7 @@ jobs:
     executor: << parameters.executor >>
     steps:
       - checkout
+
       - run: git fetch --unshallow || true
 
       - when:
@@ -359,6 +365,9 @@ jobs:
 
       - capture-build-environment:
           cache-version: << parameters.cache-version >>
+
+      - install-cabal-cache:
+          tag: << parameters.cabal-cache-tag >>
 
       - restore_cache:
           keys:
