@@ -332,7 +332,7 @@ jobs:
       cabal-cache-tag:
         description: Cabal cache tag
         type: string
-        default: ${BINARY_CACHE_URI}
+        default: latest
       binary-cache-uri:
         description: Binary cache URI.  This may be an S3 URI.
         type: string
