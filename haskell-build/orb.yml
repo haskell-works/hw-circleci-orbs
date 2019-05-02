@@ -203,6 +203,35 @@ commands:
             echo "export _BUILD_ENABLE_BENCHMARKS_FLAG=--enable-benchmarks" >> $BASH_ENV
             source $BASH_ENV
 
+  add-private-hackage-repo:
+    description: If configured, add a repository in ~/.cabal/config
+    parameters:
+      private-hackage-user:
+        description: Username on private hackage repo.
+        type: string
+      private-hackage-password:
+        description: Password on private hackage repo.
+        type: string
+      private-hackage-domain:
+        description: FQDN of private hackage repo.
+        type: string
+      private-hackage-keys:
+        description: Root keys for private hackage repo.
+        type: string
+
+    steps:
+      - run:
+          name: Add private hackage repo to cabal config
+          command: |
+            echo >> ~/.cabal.config
+            echo    "repository private"                                   >> ~/.cabal/config
+            echo -n "  url: https://<< parameters.private-hackage-user >>" >> ~/.cabal/config
+            echo -n ":<< parameters.private-hackage-password >>"           >> ~/.cabal/config
+            echo    "@<< parameters.private-hackage-domain >>/"            >> ~/.cabal/config
+            echo    "  secure: True"                                       >> ~/.cabal/config
+            echo    "  root-keys: << parameters.private-hackage-keys >>"   >> ~/.cabal/config
+            echo    "  key-threshold: 2"                                   >> ~/.cabal/config
+
 jobs:
   build:
     parameters:
@@ -260,6 +289,26 @@ jobs:
         description: Optional steps to run after executing unit tests
         type: steps
         default: []
+      use-private-hackage:
+        description: Boolean for whether or not to use a private hackage repo.
+        type: boolean
+        default: false
+      private-hackage-user:
+        description: Username on private hackage repo.
+        type: string
+        default: ${PRIV_HACKAGE_LOGIN}
+      private-hackage-password:
+        description: Password on private hackage repo.
+        type: string
+        default: ${PRIV_HACKAGE_PASSWORD}
+      private-hackage-domain:
+        description: FQDN of private hackage repo.
+        type: string
+        default: ${PRIV_HACKAGE_DOMAIN}
+      private-hackage-keys:
+        description: Root keys for private hackage repo.
+        type: string
+        default: ${PRIV_HACKAGE_KEYS}
 
     executor: << parameters.executor >>
     steps:
@@ -281,6 +330,16 @@ jobs:
             - dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}-{{ checksum "./build/project.summary" }}
             - dot-cabal-{{ checksum "./build/build.env" }}-{{ checksum "cabal.project" }}-{{ checksum "cabal.project.freeze" }}
             - dot-cabal-{{ checksum "./build/build.env" }}
+
+      - when:
+          name: Checking if we can use a private hackage repo
+          condition: << parameters.use-private-hackage >>
+          steps:
+            - add-private-hackage-repo:
+                private-hackage-user:     << parameters.private-hackage-user >>
+                private-hackage-password: << parameters.private-hackage-password >>
+                private-hackage-domain:   << parameters.private-hackage-domain >>
+                private-hackage-keys:     << parameters.private-hackage-keys >>
 
       - run:
           name: Cabal update
