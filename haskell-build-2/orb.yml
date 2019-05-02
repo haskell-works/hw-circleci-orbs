@@ -112,11 +112,9 @@ commands:
       binary-cache-uri:
         description: Binary cache URI.  This may be an S3 URI.
         type: string
-        default: ${BINARY_CACHE_URI}
       binary-cache-region:
         description: Binary cache region.  This is one of the AWS regions.
         type: string
-        default: ${BINARY_CACHE_REGION}
       binary-cache-threads:
         description: Number of threads for uploaded and downloading binary cache.
         type: string
