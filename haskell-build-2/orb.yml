@@ -291,6 +291,7 @@ commands:
           name: Add private hackage repo to cabal config
           command: |
             echo >> ~/.cabal.config
+            echo    "http-transport: wget"                                 >> ~/.cabal/config
             echo    "repository private"                                   >> ~/.cabal/config
             echo -n "  url: https://<< parameters.private-hackage-user >>" >> ~/.cabal/config
             echo -n ":<< parameters.private-hackage-password >>"           >> ~/.cabal/config
