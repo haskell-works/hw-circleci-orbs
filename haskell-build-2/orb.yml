@@ -119,14 +119,19 @@ commands:
         description: Number of threads for uploaded and downloading binary cache.
         type: string
         default: ${BINARY_CACHE_THREADS}
+      binary-cache-aws-log-level:
+        description: AWS log level
+        type: string
+        default: ${BINARY_CACHE_AWS_LOG_LEVEL}
 
     steps:
       - run:
           name: Restore binary cache
           command: |
             cabal-cache sync-from-archive --archive-uri "<< parameters.binary-cache-uri >>" \
-              <<# parameters.binary-cache-region >> --region "<< parameters.binary-cache-region >>" <</ parameters.binary-cache-region >> \
-              <<# parameters.binary-cache-threads >> --threads "<< parameters.binary-cache-threads >>" <</ parameters.binary-cache-threads >>
+              <<# parameters.binary-cache-region        >> --region         "<< parameters.binary-cache-region        >>" <</ parameters.binary-cache-region        >> \
+              <<# parameters.binary-cache-threads       >> --threads        "<< parameters.binary-cache-threads       >>" <</ parameters.binary-cache-threads       >> \
+              <<# parameters.binary-cache-aws-log-level >> --aws-log-level  "<< parameters.binary-cache-aws-log-level >>" <</ parameters.binary-cache-aws-log-level >>
 
   save-binary-cache:
     description: Capturing build environment (for caching)
@@ -143,14 +148,19 @@ commands:
         description: Number of threads for uploaded and downloading binary cache.
         type: string
         default: ${BINARY_CACHE_THREADS}
+      binary-cache-aws-log-level:
+        description: AWS log level
+        type: string
+        default: ${BINARY_CACHE_AWS_LOG_LEVEL}
 
     steps:
       - run:
           name: Saving binary cache
           command: |
             cabal-cache sync-to-archive --archive-uri "<< parameters.binary-cache-uri >>" \
-              <<# parameters.binary-cache-region >> --region "<< parameters.binary-cache-region >>" <</ parameters.binary-cache-region >> \
-              <<# parameters.binary-cache-threads >> --threads "<< parameters.binary-cache-threads >>" <</ parameters.binary-cache-threads >>
+              <<# parameters.binary-cache-region        >> --region         "<< parameters.binary-cache-region        >>" <</ parameters.binary-cache-region        >> \
+              <<# parameters.binary-cache-threads       >> --threads        "<< parameters.binary-cache-threads       >>" <</ parameters.binary-cache-threads       >> \
+              <<# parameters.binary-cache-aws-log-level >> --aws-log-level  "<< parameters.binary-cache-aws-log-level >>" <</ parameters.binary-cache-aws-log-level >>
 
   capture-build-environment:
     description: Capturing build environment (for caching)
@@ -372,6 +382,10 @@ jobs:
         description: Number of threads for uploaded and downloading binary cache.
         type: string
         default: ${BINARY_CACHE_THREADS}
+      binary-cache-aws-log-level:
+        description: AWS log level
+        type: string
+        default: ${BINARY_CACHE_AWS_LOG_LEVEL}
       use-private-hackage:
         description: Boolean for whether or not to use a private hackage repo.
         type: boolean
@@ -492,6 +506,7 @@ jobs:
                 binary-cache-uri: << parameters.binary-cache-uri >>
                 binary-cache-region: << parameters.binary-cache-region >>
                 binary-cache-threads: << parameters.binary-cache-threads >>
+                binary-cache-aws-log-level: << parameters.binary-cache-aws-log-level >>
 
       - run: cabal v2-build all << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG --dependencies-only -j<< parameters.cabal-threads >>
 
@@ -503,6 +518,7 @@ jobs:
                 binary-cache-uri: << parameters.binary-cache-uri >>
                 binary-cache-region: << parameters.binary-cache-region >>
                 binary-cache-threads: << parameters.binary-cache-threads >>
+                binary-cache-aws-log-level: << parameters.binary-cache-aws-log-level >>
 
       - run:
           name: Configuring project
@@ -516,6 +532,7 @@ jobs:
                 binary-cache-uri: << parameters.binary-cache-uri >>
                 binary-cache-region: << parameters.binary-cache-region >>
                 binary-cache-threads: << parameters.binary-cache-threads >>
+                binary-cache-aws-log-level: << parameters.binary-cache-aws-log-level >>
 
       - run:
           name: Building project
@@ -529,6 +546,7 @@ jobs:
                 binary-cache-uri: << parameters.binary-cache-uri >>
                 binary-cache-region: << parameters.binary-cache-region >>
                 binary-cache-threads: << parameters.binary-cache-threads >>
+                binary-cache-aws-log-level: << parameters.binary-cache-aws-log-level >>
 
       - when:
           name: Running after-build hook steps
