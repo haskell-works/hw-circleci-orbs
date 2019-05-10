@@ -128,10 +128,11 @@ commands:
       - run:
           name: Restore binary cache
           command: |
-            cabal-cache sync-from-archive --archive-uri "<< parameters.binary-cache-uri >>" \
-              <<# parameters.binary-cache-region    >> --region   "<< parameters.binary-cache-region  >>" <</ parameters.binary-cache-region   >> \
-              <<# parameters.binary-cache-threads   >> --threads  "<< parameters.binary-cache-threads >>" <</ parameters.binary-cache-threads  >> \
-              <<# parameters.binary-cache-opts      >> << parameters.binary-cache-opts                >>  <</ parameters.binary-cache-opts     >>
+            cabal-cache sync-from-archive \
+              $(if [ ! -z << parameters.binary-cache-threads  >> ]; then echo -n --threads      "<< parameters.binary-cache-threads >>"; fi) \
+              $(if [ ! -z << parameters.binary-cache-uri      >> ]; then echo -n --archive-uri  "<< parameters.binary-cache-uri     >>"; fi) \
+              $(if [ ! -z << parameters.binary-cache-region   >> ]; then echo -n --region       "<< parameters.binary-cache-region  >>"; fi) \
+              <<# parameters.binary-cache-opts >> << parameters.binary-cache-opts >>  <</ parameters.binary-cache-opts >>
 
   save-binary-cache:
     description: Capturing build environment (for caching)
@@ -157,10 +158,11 @@ commands:
       - run:
           name: Saving binary cache
           command: |
-            cabal-cache sync-to-archive --archive-uri "<< parameters.binary-cache-uri >>" \
-              <<# parameters.binary-cache-region    >> --region   "<< parameters.binary-cache-region  >>" <</ parameters.binary-cache-region   >> \
-              <<# parameters.binary-cache-threads   >> --threads  "<< parameters.binary-cache-threads >>" <</ parameters.binary-cache-threads  >> \
-              <<# parameters.binary-cache-opts      >> << parameters.binary-cache-opts                >>  <</ parameters.binary-cache-opts     >>
+            cabal-cache sync-to-archive \
+              $(if [ ! -z << parameters.binary-cache-threads  >> ]; then echo -n --threads      "<< parameters.binary-cache-threads >>"; fi) \
+              $(if [ ! -z << parameters.binary-cache-uri      >> ]; then echo -n --archive-uri  "<< parameters.binary-cache-uri     >>"; fi) \
+              $(if [ ! -z << parameters.binary-cache-region   >> ]; then echo -n --region       "<< parameters.binary-cache-region  >>"; fi) \
+              <<# parameters.binary-cache-opts >> << parameters.binary-cache-opts >>  <</ parameters.binary-cache-opts >>
 
   capture-build-environment:
     description: Capturing build environment (for caching)
