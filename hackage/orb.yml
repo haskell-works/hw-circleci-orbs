@@ -26,17 +26,20 @@ commands:
       - run:
           name: Publishing on Hackage
           command: |
-            HACKAGE_STATUS=$(curl --silent --head -w %{http_code} -XGET http://hackage.haskell.org/package/$PACKAGE_NAME -o /dev/null)
-            if [ "$HACKAGE_STATUS" = "404" ]; then
-              cabal upload \
-                --username "<< parameters.username >>" \
-                --password "<< parameters.password >>" \
-                <<# parameters.publish >> --publish <</ parameters.publish >> \
-                $PACKAGE_TARBALL
-              echo "Published $PACKAGE_NAME"
-            else
-              echo "Package $PACKAGE_NAME" already exists on Hackage.
-            fi
+            for PACKAGE_TARBALL in $(find ./build/sdist/ -name "*.tar.gz"); do
+              PACKAGE_NAME=$(basename ${PACKAGE_TARBALL%.*.*})
+              HACKAGE_STATUS=$(curl --silent --head -w %{http_code} -XGET http://hackage.haskell.org/package/$PACKAGE_NAME -o /dev/null)
+              if [ "$HACKAGE_STATUS" = "404" ]; then
+                cabal upload \
+                  --username "<< parameters.username >>" \
+                  --password "<< parameters.password >>" \
+                  <<# parameters.publish >> --publish <</ parameters.publish >> \
+                  $PACKAGE_TARBALL
+                echo "Published $PACKAGE_NAME"
+              else
+                echo "Package $PACKAGE_NAME" already exists on Hackage.
+              fi
+            done
 
   prepare-release:
     description:
@@ -44,23 +47,14 @@ commands:
       and sets PACKAGE_TARBALL and PACKAGE_NAME env variables.
     steps:
       - run:
-          name: Checking if the package is ready for distribution
-          command: cabal check
-      - run:
           name: Preparing the release
           command: |
-              mkdir -p ./build/sdist && rm -rf ./build/sdist/*
-              cabal new-sdist -o ./build/sdist
-              PACKAGE_TARBALL=$(ls $PWD/build/sdist/*.tar.gz | head -n 1)
-              if [ ! -f "$PACKAGE_TARBALL" ]; then
-                echo "Unable to create tarball"
-                exit 1
-              fi
-              PACKAGE_NAME=$(basename ${PACKAGE_TARBALL%.*.*})
-
-              echo "export PACKAGE_TARBALL=$PACKAGE_TARBALL" >> $BASH_ENV
-              echo "export PACKAGE_NAME=$PACKAGE_NAME"       >> $BASH_ENV
-              source $BASH_ENV
+              PROJECT_DIR=$PWD
+              mkdir -p $PROJECT_DIR/build/sdist
+              for i in $(git ls-files | grep .cabal); do
+                cd $PROJECT_DIR && cd `dirname $i`
+                cabal check && cabal new-sdist -o $PROJECT_DIR/build/sdist
+              done;
 
 jobs:
   upload:
