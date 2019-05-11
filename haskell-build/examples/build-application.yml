@@ -1,0 +1,13 @@
+description: |
+    A typical workflow for building Haskell applications.
+    It uses the default executor (GHC 8.4.4) to build an app.
+usage:
+  version: 2.1
+
+  orbs:
+    haskell: haskell-works/haskell-build@1.6.6
+
+  workflows:
+    build-my-application:
+      jobs:
+        - haskell/build

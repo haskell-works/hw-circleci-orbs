@@ -1,0 +1,194 @@
+description: Perforks build using cabal-cache
+parameters:
+  cache-version:
+    description: Cache version. Update this value when you want to start with new build caches.
+    type: string
+  cabal-threads:
+    description: Number of Cabal threads.
+    type: integer
+  cabal-build-extra:
+    description: Extra CLI parameters to pass to the "cabal v2-build" command.
+    type: string
+  cabal-test-extra:
+    description: Extra CLI parameters to pass to the "cabal v2-test" command.
+    type: string
+  fail-incoherent-builds:
+    description: Fail the build when immediate dependencies are incoherent
+    type: boolean
+  run-tests:
+    description: Boolean for whether or not to run unit tests
+    type: boolean
+  run-check:
+    description: Boolean for whether or not to check if the package has valid cabal file for distribution
+    type: boolean
+  before-build:
+    description: Optional steps to run after cabal update but before build
+    type: steps
+  after-build:
+    description: Optional steps to run after build but before running tests
+    type: steps
+  after-test:
+    description: Optional steps to run after executing unit tests
+    type: steps
+  cabal-cache-tag:
+    description: Cabal cache tag
+    type: string
+  binary-cache-uri:
+    description: Binary cache URI.  This may be an S3 URI.
+    type: string
+  binary-cache-region:
+    description: Binary cache region.  This is one of the AWS regions.
+    type: string
+  binary-cache-threads:
+    description: Number of threads for uploaded and downloading binary cache.
+    type: string
+  binary-cache-opts:
+    description: AWS log level
+    type: string
+
+steps:
+  - override-ghc
+
+  - run:
+      name: Set package snapshot typestamp
+      command: date +%Y/%m/%d > date.txt
+
+  - capture-build-environment:
+      cache-version: << parameters.cache-version >>
+
+  - install-cabal-cache:
+      tag: << parameters.cabal-cache-tag >>
+
+  - restore_cache:
+      keys:
+        - dot-cabal-packages--{{checksum "date.txt"}}--{{checksum "./build/build.env"}}
+
+  - run:
+      name: Cabal update
+      command: |
+        if [ -f ~/.cabal/packages/hackage.haskell.org/01-index.tar.gz ] && [ ! -f ~/.cabal/packages/hackage.haskell.org/01-index.tar ]; then
+          gunzip -c ~/.cabal/packages/hackage.haskell.org/01-index.tar.gz > ~/.cabal/packages/hackage.haskell.org/01-index.tar
+        fi
+        cabal v2-update -j<< parameters.cabal-threads >>
+
+  - save_cache:
+      key: dot-cabal-packages--{{checksum "date.txt"}}--{{checksum "./build/build.env"}}
+      paths:
+        - ~/.cabal/packages/hackage.haskell.org/01-index.cache
+        - ~/.cabal/packages/hackage.haskell.org/hackage-security-lock
+        - ~/.cabal/packages/hackage.haskell.org/01-index.tar.gz
+        - ~/.cabal/packages/hackage.haskell.org/snapshot.json
+        - ~/.cabal/packages/hackage.haskell.org/01-index.timestamp
+        - ~/.cabal/packages/hackage.haskell.org/mirrors.json
+        - ~/.cabal/packages/hackage.haskell.org/timestamp.json
+        - ~/.cabal/packages/hackage.haskell.org/01-index.tar.idx
+        - ~/.cabal/packages/hackage.haskell.org/root.json
+
+  - set-project-env
+
+  - when:
+      name: Checking if hackage would accept cabal file
+      condition: << parameters.run-check >>
+      steps:
+        - run:
+            name: Running cabal check (can be disabled in CI with run-check=false)
+            command: |
+              for x in $(cat ./build/build-info.json | jq -r .path | sort -u); do
+                ( echo "\n# Running cabal check in $x"
+                  cd "$x"
+                  cabal check
+                )
+              done
+
+
+  - when:
+      name: Running before-build hook steps
+      condition: << parameters.before-build >>
+      steps: << parameters.before-build >>
+
+  - when:
+      name: Check immediate dependencies coherence
+      condition: << parameters.fail-incoherent-builds >>
+      steps:
+        - check-immediate-dependencies-coherence
+
+  - run:
+      name: Configuring project
+      command: |
+        cabal v2-configure all << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG --dependencies-only -j<< parameters.cabal-threads >>
+
+  - when:
+      name: Restore binary cache
+      condition: << parameters.binary-cache-uri >>
+      steps:
+        - restore-binary-cache:
+            binary-cache-uri: << parameters.binary-cache-uri >>
+            binary-cache-region: << parameters.binary-cache-region >>
+            binary-cache-threads: << parameters.binary-cache-threads >>
+            binary-cache-opts: << parameters.binary-cache-opts >>
+
+  - run:
+      command: |
+        cabal v2-build all << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG --dependencies-only -j<< parameters.cabal-threads >>
+
+  - when:
+      name: Save binary cache
+      condition: << parameters.binary-cache-uri >>
+      steps:
+        - save-binary-cache:
+            binary-cache-uri: << parameters.binary-cache-uri >>
+            binary-cache-region: << parameters.binary-cache-region >>
+            binary-cache-threads: << parameters.binary-cache-threads >>
+            binary-cache-opts: << parameters.binary-cache-opts >>
+
+  - run:
+      name: Configuring project
+      command: |
+        cabal v2-configure all << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+
+  - when:
+      name: Restore binary cache
+      condition: << parameters.binary-cache-uri >>
+      steps:
+        - restore-binary-cache:
+            binary-cache-uri: << parameters.binary-cache-uri >>
+            binary-cache-region: << parameters.binary-cache-region >>
+            binary-cache-threads: << parameters.binary-cache-threads >>
+            binary-cache-opts: << parameters.binary-cache-opts >>
+
+  - run:
+      name: Building project
+      command: |
+        cabal v2-build all << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+
+  - when:
+      name: Save binary cache
+      condition: << parameters.binary-cache-uri >>
+      steps:
+        - save-binary-cache:
+            binary-cache-uri: << parameters.binary-cache-uri >>
+            binary-cache-region: << parameters.binary-cache-region >>
+            binary-cache-threads: << parameters.binary-cache-threads >>
+            binary-cache-opts: << parameters.binary-cache-opts >>
+
+  - when:
+      name: Running after-build hook steps
+      condition: << parameters.after-build >>
+      steps: << parameters.after-build >>
+
+  - when:
+      condition: << parameters.run-tests >>
+      steps:
+        - run:
+            name: Running unit tests
+            command: |
+              if cat ./build/build-info.json | jq --exit-status 'select(."component-type" == "test") | []' > /dev/null; then
+                cabal v2-test all << parameters.cabal-test-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+              else
+                echo "No tests found"
+              fi
+
+  - when:
+      name: Running after-test hook steps
+      condition: << parameters.after-test >>
+      steps: << parameters.after-test >>

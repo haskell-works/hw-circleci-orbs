@@ -1,0 +1,23 @@
+description: Capturing build environment (for caching)
+parameters:
+  binary-cache-uri:
+    description: Binary cache URI.  This may be an S3 URI.
+    type: string
+  binary-cache-region:
+    description: Binary cache region.  This is one of the AWS regions.
+    type: string
+  binary-cache-threads:
+    description: Number of threads for uploaded and downloading binary cache.
+    type: string
+  binary-cache-opts:
+    description: AWS log level
+    type: string
+
+steps:
+  - run:
+      name: Restore binary cache
+      command: |
+        cabal-cache sync-from-archive --archive-uri "<< parameters.binary-cache-uri >>" \
+          <<# parameters.binary-cache-region    >> --region   "<< parameters.binary-cache-region  >>" <</ parameters.binary-cache-region   >> \
+          <<# parameters.binary-cache-threads   >> --threads  "<< parameters.binary-cache-threads >>" <</ parameters.binary-cache-threads  >> \
+          <<# parameters.binary-cache-opts      >> << parameters.binary-cache-opts                >>  <</ parameters.binary-cache-opts     >>

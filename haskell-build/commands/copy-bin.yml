@@ -1,0 +1,17 @@
+parameters:
+  workspace-dir:
+    description: Result workspace directory name
+    type: string
+steps:
+  - run:
+      name: Copying executable
+      command: |
+        mkdir -p ./build/dist
+        mkdir -p $(dirname << parameters.workspace-dir >>)
+
+        # Copy all the relevant executables and copy them to the dist folder
+        cp `cat ./build/build-info.json | jq -r '. | select(."component-type" == "exe") | ."bin-file"'` ./build/dist
+        if [[ ! $(realpath ./build) -ef $(realpath ./<< parameters.workspace-dir >>) ]]; then
+          mv ./build ./<< parameters.workspace-dir >>
+        fi
+        find ./<< parameters.workspace-dir >> -type f

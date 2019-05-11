@@ -1,0 +1,36 @@
+description: Describes the build by providing info for all the local components in this build
+steps:
+  - run:
+      name: Describing the build (./build/build-info.json)
+      command: |
+        mkdir -p ./build
+        cat ./dist-newstyle/cache/plan.json | jq -r "$(cat \<<-EOF
+          ."install-plan"[]
+        | select(."pkg-src"."type" == "local")
+        | . as \$x
+        | if ."component-name"
+            then
+              { "pkg-name": ."pkg-name"
+              , "component-id": ."component-name"
+              , "path": ."pkg-src".path
+              , "bin-file": ."bin-file"
+              , "pkg-version": ."pkg-version"
+              , "component-type": ."component-name" | split(":")[0]
+              , "component-name": ."component-name" | split(":")[1]
+              }
+            else
+                ."components"
+              | to_entries[]
+              | { "component-id": ."key"
+                , "component-type": ."key" | split(":")[0]
+                , "component-name": ."key" | split(":")[1]
+                , "bin-file": .value."bin-file"
+                , "pkg-name": \$x."pkg-name"
+                , "pkg-version": \$x."pkg-version"
+                , "path": \$x."pkg-src".path
+                }
+            end
+        | select(."component-type" != "setup")
+        EOF
+        )" > ./build/build-info.json
+        cat ./build/build-info.json

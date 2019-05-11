@@ -1,0 +1,31 @@
+description: If configured, add a repository in ~/.cabal/config
+parameters:
+  private-hackage-user:
+    description: Username on private hackage repo.
+    type: string
+  private-hackage-password:
+    description: Password on private hackage repo.
+    type: string
+  private-hackage-domain:
+    description: FQDN of private hackage repo.
+    type: string
+  private-hackage-keys:
+    description: Root keys for private hackage repo.
+    type: string
+
+steps:
+  - run:
+      name: Add private hackage repo to cabal config
+      command: |
+        if [[ ! -e ~/.cabal/config ]]; then
+          cabal user-config init
+        fi
+        echo >> ~/.cabal/config
+        echo    "http-transport: wget"                                 >> ~/.cabal/config
+        echo    "repository private"                                   >> ~/.cabal/config
+        echo -n "  url: https://<< parameters.private-hackage-user >>" >> ~/.cabal/config
+        echo -n ":<< parameters.private-hackage-password >>"           >> ~/.cabal/config
+        echo    "@<< parameters.private-hackage-domain >>/"            >> ~/.cabal/config
+        echo    "  secure: True"                                       >> ~/.cabal/config
+        echo    "  root-keys: << parameters.private-hackage-keys >>"   >> ~/.cabal/config
+        echo    "  key-threshold: 2"                                   >> ~/.cabal/config

@@ -1,0 +1,41 @@
+description: Check if --enable-test and --enable-benchmark are safe to use
+steps:
+  - run:
+      name: Check immediate dependencies coherence
+      command: |
+        cp cabal.project enable.cabal.project
+        cp cabal.project disable.cabal.project
+        cabal new-freeze --project-file enable.cabal.project --enable-tests --enable-benchmarks
+        cabal new-freeze --project-file disable.cabal.project --disable-tests --disable-benchmarks
+        (diff <(sed 's/,*$//g' disable.cabal.project.freeze) <(sed 's/,*$//g' enable.cabal.project.freeze) || true) \
+          | (grep "<" || true)                                                  \
+          | (grep -v 'constraints:' || true)                                    \
+          | tr -s ' '                                                           \
+          | cut -d ' ' -f 2                                                     \
+          | cut -d '.' -f 2                                                     \
+          | sort > /tmp/changing-dependencies.txt
+        cabal-plan info | sed -n '/^CompNameLib$/,/^$/ p'                       \
+          | (grep '  ' || true)                                                 \
+          | sed 's|^  ||g'                                                      \
+          | rev                                                                 \
+          | cut -d '-' -f 2-                                                    \
+          | rev                                                                 \
+          | sort > /tmp/immediate-dependencies.txt
+        touch .circleci/whitelist-dependencies.txt
+        comm -13 <(sort .circleci/whitelist-dependencies.txt) /tmp/immediate-dependencies.txt > /tmp/important-dependencies.txt
+        comm -12 /tmp/changing-dependencies.txt /tmp/important-dependencies.txt > /tmp/incoherent-dependencies.txt
+
+        echo "Changing dependencies: "
+        sed 's|^|  |g' /tmp/changing-dependencies.txt
+        echo "Whitelisted dependencies: "
+        sed 's|^|  |g' .circleci/whitelist-dependencies.txt
+        echo "Incoherent dependencies: "
+        sed 's|^|  |g' /tmp/incoherent-dependencies.txt
+
+        if [ "$(cat /tmp/incoherent-dependencies.txt | xargs)" != "" ]; then
+          echo "Error: Found incoherent immediate dependencies"
+          exit 1
+        fi
+        echo "export _BUILD_ENABLE_TESTS_FLAG=--enable-tests" >> $BASH_ENV
+        echo "export _BUILD_ENABLE_BENCHMARKS_FLAG=--enable-benchmarks" >> $BASH_ENV
+        source $BASH_ENV

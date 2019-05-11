@@ -1,0 +1,33 @@
+steps:
+  - run:
+      name: Configuring the build
+      command: cabal v2-configure
+
+  - describe-build
+
+  - run:
+      name: Setting project environment
+      command: |
+        BUILD_DIST="./dist-newstyle/build"
+        BUILD_CABAL_VERSION=$(cabal --numeric-version)
+
+        BUILD_EXE_NAMES_VERSIONS=($(cat ./build/build-info.json | jq -r '. | select(."component-type" == "exe") | "\(."component-name"):\(."pkg-version")"' | xargs))
+        BUILD_EXE_NAMES=($(printf ${BUILD_EXE_NAMES_VERSIONS[@]} | cut -d ':' -f 1))
+        BUILD_EXE_NAME=${BUILD_EXE_NAMES[0]}
+        BUILD_EXE_VERSION=$(echo ${BUILD_EXE_NAMES_VERSIONS[0]} | cut -d ':' -f 2)
+
+        echo "$BUILD_GHC_VERSION" > ./build/ghc.version
+
+        echo "export BUILD_CABAL_VERSION=$BUILD_CABAL_VERSION"      > ./build/project.env
+        echo "export BUILD_GHC_VERSION=$BUILD_GHC_VERSION"         >> ./build/project.env
+        echo "export BUILD_ARCH=$BUILD_ARCH"                       >> ./build/project.env
+        echo "export BUILD_OS_NAME=$BUILD_OS_NAME"                 >> ./build/project.env
+
+        echo "export BUILD_EXE_NAMES_VERSIONS=(${BUILD_EXE_NAMES_VERSIONS[*]})" >> ./build/project.env
+        echo "export BUILD_EXE_NAMES=(${BUILD_EXE_NAMES[*]})"      >> ./build/project.env
+        echo "export BUILD_EXE_NAME=$BUILD_EXE_NAME"               >> ./build/project.env
+        echo "export BUILD_EXE_VERSION=$BUILD_EXE_VERSION"         >> ./build/project.env
+
+        cat ./build/project.env >> $BASH_ENV
+        cat ./build/project.env
+        source $BASH_ENV
