@@ -163,7 +163,9 @@ commands:
 
             # Copy all the relevant executables and copy them to the dist folder
             cp `cat ./build/build-info.json | jq -r '. | select(."component-type" == "exe") | ."bin-file"'` ./build/dist
-            mv ./build ./<< parameters.workspace-dir >>
+            if [[ ! ./build -ef ./<< parameters.workspace-dir >> ]]; then
+              mv ./build ./<< parameters.workspace-dir >>
+            fi
             find ./<< parameters.workspace-dir >> -type f
 
   check-immediate-dependencies-coherence:
