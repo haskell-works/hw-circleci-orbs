@@ -12,6 +12,13 @@ https://circleci.com/orbs/registry/orb/haskell-works/hackage
 
 https://circleci.com/orbs/registry/orb/haskell-works/docker-publish
 
+## Building and publishing
+
+```
+$ circleci config pack haskell-build > /tmp/haskell-build.yml
+$ circleci orb publish /tmp/haskell-build.yml haskell-works/haskell-build@dev:nexgen
+```
+
 
 ## Examples
 
@@ -98,6 +105,4 @@ workflows:
           publish: true
           requires:
             - GitHub Release
-          username: ${HACKAGE_USER}
-          password: ${HACKAGE_PASS}
 ```

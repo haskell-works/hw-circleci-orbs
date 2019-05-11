@@ -1,0 +1,28 @@
+description: Capturing build environment (for caching)
+parameters:
+  cache-version:
+    description: Cache version. Update this value when you want to start with new build caches.
+    type: string
+
+steps:
+  - run:
+      name: Capture build environment
+      command: |
+        mkdir -p ./build
+
+        find . -name "*.cabal" | grep -v 'dist-newstyle/' | sort | xargs grep '^' | grep -v ':version:' | md5sum > ./build/project.summary
+
+        BUILD_GHC_VERSION=$(cat cabal.project | grep 'with-compiler:' | head -n 1 | tr -s ' ' | cut -d' ' -f2 | cut -d'-' -f2)
+        if [ "$BUILD_GHC_VERSION" = "" ]; then BUILD_GHC_VERSION=$(ghc -- --numeric-version); fi
+
+        BUILD_ARCH=$(uname -m)
+
+        BUILD_OS_NAME=$(uname -s | tr '[:upper:]' '[:lower:]')
+        if [ "$BUILD_OS_NAME" = "darwin" ]; then BUILD_OS_NAME="osx"; fi
+
+        echo "CACHE_VERSION=<< parameters.cache-version >>"         > ./build/build.env
+        echo "BUILD_GHC_VERSION=$BUILD_GHC_VERSION"                >> ./build/build.env
+        echo "BUILD_ARCH=$BUILD_ARCH"                              >> ./build/build.env
+        echo "BUILD_OS_NAME=$BUILD_OS_NAME"                        >> ./build/build.env
+        cat ./build/build.env >> $BASH_ENV
+        cat ./build/build.env

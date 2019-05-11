@@ -1,0 +1,19 @@
+description: |
+  Use custom lifecycle hooks to add project-specific steps to a build process
+
+usage:
+  version: 2.1
+
+  orbs:
+    haskell: haskell-works/haskell-build@1.6.6 # use latest version
+
+  workflows:
+    build-my-application:
+      jobs:
+        - haskell/build:
+            before-build:
+              - run: echo "I run before build"
+            after-build:
+              - run: echo "I run after build"
+            after-test:
+              - run: echo "I run after tests"

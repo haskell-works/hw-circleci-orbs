@@ -1,0 +1,31 @@
+executors:
+  ghc-7_10_3:
+    docker:
+      - image: quay.io/haskell_works/ghc-7.10.3:latest
+  ghc-8_0_2:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.0.2:latest
+  ghc-8_2_2:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.2.2:latest
+  ghc-8_4_4:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.4.4:latest
+  ghc-8_4_3:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.4.3:latest
+  ghc-8_6_3:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.6.3:latest
+  ghc-8_6_4:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.6.4:latest
+  ghc-8_6_5:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.6.5:latest
+  ghc-844:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.4.4:latest
+  ghc-863:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.6.3:latest

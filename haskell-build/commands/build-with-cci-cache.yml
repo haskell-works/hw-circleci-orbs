@@ -1,0 +1,123 @@
+description: Perform build using CCI built-in cache
+parameters:
+  cache-version:
+    description: Cache version. Update this value when you want to start with new build caches.
+    type: string
+  cabal-threads:
+    description: Number of Cabal threads.
+    type: integer
+  cabal-build-extra:
+    description: Extra CLI parameters to pass to the "cabal v2-build" command.
+    type: string
+  cabal-test-extra:
+    description: Extra CLI parameters to pass to the "cabal v2-test" command.
+    type: string
+  fail-incoherent-builds:
+    description: Fail the build when immediate dependencies are incoherent
+    type: boolean
+  run-tests:
+    description: Boolean for whether or not to run unit tests
+    type: boolean
+  run-check:
+    description: Boolean for whether or not to check if the package has valid cabal file for distribution
+    type: boolean
+  before-build:
+    description: Optional steps to run after cabal update but before build
+    type: steps
+  after-build:
+    description: Optional steps to run after build but before running tests
+    type: steps
+  after-test:
+    description: Optional steps to run after executing unit tests
+    type: steps
+
+steps:
+  - override-ghc
+
+  - capture-build-environment:
+      cache-version: << parameters.cache-version >>
+
+  - restore_cache:
+      keys:
+        - dot-cabal-{{checksum "./build/build.env"}}-{{checksum "cabal.project"}}-{{checksum "cabal.project.freeze"}}-{{checksum "./build/project.summary"}}
+        - dot-cabal-{{checksum "./build/build.env"}}-{{checksum "cabal.project"}}-{{checksum "cabal.project.freeze"}}
+        - dot-cabal-{{checksum "./build/build.env"}}
+
+  - run:
+      name: Cabal update
+      command: |
+        cabal v2-update -j<< parameters.cabal-threads >>
+
+  - set-project-env
+
+  - when:
+      name: Checking if hackage would accept cabal file
+      condition: << parameters.run-check >>
+      steps: [cabal-check-all]
+
+  - restore_cache:
+      keys:
+        - dist-{{checksum "./build/build.env"}}-{{checksum "cabal.project"}}-{{checksum "cabal.project.freeze"}}-{{checksum "./build/project.summary"}}
+        - dist-{{checksum "./build/build.env"}}-{{checksum "cabal.project"}}
+
+  - when:
+      name: Running before-build hook steps
+      condition: << parameters.before-build >>
+      steps: << parameters.before-build >>
+
+  - when:
+      name: Check immediate dependencies coherence
+      condition: << parameters.fail-incoherent-builds >>
+      steps:
+        - check-immediate-dependencies-coherence
+
+  - run:
+      command: |
+        cabal v2-build all << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG --dependencies-only -j<< parameters.cabal-threads >>
+
+  - save_cache:
+      key: dot-cabal-{{checksum "./build/build.env"}}-{{checksum "cabal.project"}}-{{checksum "cabal.project.freeze"}}
+      paths: [~/.cabal/packages, ~/.cabal/store]
+
+  - save_cache:
+      key: dot-cabal-{{checksum "./build/build.env"}}
+      paths: [~/.cabal/packages, ~/.cabal/store]
+
+  - run:
+      name: Building project
+      command: |
+        cabal v2-build all << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+
+  - when:
+      name: Running after-build hook steps
+      condition: << parameters.after-build >>
+      steps: << parameters.after-build >>
+
+  - when:
+      condition: << parameters.run-tests >>
+      steps:
+        - run:
+            name: Running unit tests
+            command: |
+              if cat ./build/build-info.json | jq --exit-status 'select(."component-type" == "test") | []' > /dev/null; then
+                cabal v2-test all << parameters.cabal-test-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+              else
+                echo "No tests found"
+              fi
+
+  - when:
+      name: Running after-test hook steps
+      condition: << parameters.after-test >>
+      steps: << parameters.after-test >>
+
+  - save_cache:
+      key: dist-{{checksum "./build/build.env"}}-{{checksum "cabal.project"}}
+      paths: [./dist-newstyle]
+
+  - save_cache:
+      key: dist-{{checksum "./build/build.env"}}-{{checksum "cabal.project"}}-{{checksum "cabal.project.freeze"}}-{{checksum "./build/project.summary"}}
+      paths: [./dist-newstyle]
+
+  - save_cache:
+      key: dot-cabal-{{checksum "./build/build.env"}}-{{checksum "cabal.project"}}-{{checksum "cabal.project.freeze"}}-{{checksum "./build/project.summary"}}
+      paths: [~/.cabal/packages, ~/.cabal/store]

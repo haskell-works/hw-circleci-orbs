@@ -1,0 +1,61 @@
+parameters:
+  after-checkout:
+    description: Optional steps to run after checkout
+    type: steps
+
+  write-result-workspace:
+    description: Boolean for whether or not to persist results to a workspace.
+    type: boolean
+  workspace-dir:
+    description: Result workspace directory name
+    type: string
+
+  use-private-hackage:
+    description: Boolean for whether or not to use a private hackage repo.
+    type: boolean
+  private-hackage-user:
+    description: Username on private hackage repo.
+    type: string
+  private-hackage-password:
+    description: Password on private hackage repo.
+    type: string
+  private-hackage-domain:
+    description: FQDN of private hackage repo.
+    type: string
+  private-hackage-keys:
+    description: Root keys for private hackage repo.
+    type: string
+
+  build-steps:
+    description: Steps to perform
+    type: steps
+
+steps:
+  - checkout
+  - run: git fetch --unshallow || true
+
+  - when:
+      name: Running after-checkout hook steps
+      condition: << parameters.after-checkout >>
+      steps: << parameters.after-checkout >>
+
+  - when:
+      name: Checking if we can use a private hackage repo
+      condition: << parameters.use-private-hackage >>
+      steps:
+        - add-private-hackage-repo:
+            private-hackage-user:     << parameters.private-hackage-user >>
+            private-hackage-password: << parameters.private-hackage-password >>
+            private-hackage-domain:   << parameters.private-hackage-domain >>
+            private-hackage-keys:     << parameters.private-hackage-keys >>
+
+  - steps: << parameters.build-steps >>
+
+  - when:
+      condition: << parameters.write-result-workspace >>
+      steps:
+        - copy-bin:
+            workspace-dir: << parameters.workspace-dir >>
+        - persist_to_workspace:
+            root: .
+            paths: [<< parameters.workspace-dir >>]

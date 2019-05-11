@@ -1,0 +1,11 @@
+description: Run cabal check for all projects in the repository
+steps:
+  - run:
+      name: Run cabal check (can be disabled in CI with run-check=false)
+      command: |
+        for x in $(cat ./build/build-info.json | jq -r .path | sort -u); do
+          ( echo "\n# Running cabal check in $x"
+            cd "$x"
+            cabal check
+          )
+        done
