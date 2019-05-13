@@ -83,27 +83,6 @@ build-params: &build-params
     type: string
     default: ${PRIV_HACKAGE_KEYS}
 
-  cabal-cache-tag:
-    description: Github tag of the 'cabal-cache' tool to use for binary caching.
-    type: string
-    default: latest
-  binary-cache-uri:
-    description: Binary cache URI.  This may be an S3 URI.
-    type: string
-    default: ${BINARY_CACHE_URI}
-  binary-cache-region:
-    description: Binary cache region.  This is one of the AWS regions.
-    type: string
-    default: ${BINARY_CACHE_REGION}
-  binary-cache-threads:
-    description: Number of threads for uploaded and downloading binary cache.
-    type: string
-    default: ${BINARY_CACHE_THREADS}
-  binary-cache-opts:
-    description: AWS log level
-    type: string
-    default: ${BINARY_CACHE_OPTS}
-
 jobs:
   build-with-binary-cache:
     description: |
@@ -113,6 +92,26 @@ jobs:
     executor: << parameters.executor >>
     parameters:
       <<: *build-params
+      cabal-cache-tag:
+        description: Github tag of the 'cabal-cache' tool to use for binary caching.
+        type: string
+        default: latest
+      binary-cache-uri:
+        description: Binary cache URI.  This may be an S3 URI.
+        type: string
+        default: ${BINARY_CACHE_URI}
+      binary-cache-region:
+        description: Binary cache region.  This is one of the AWS regions.
+        type: string
+        default: ${BINARY_CACHE_REGION}
+      binary-cache-threads:
+        description: Number of threads for uploaded and downloading binary cache.
+        type: string
+        default: ${BINARY_CACHE_THREADS}
+      binary-cache-opts:
+        description: AWS log level
+        type: string
+        default: ${BINARY_CACHE_OPTS}
     steps:
       - perform-build:
           use-private-hackage:      << parameters.use-private-hackage >>
