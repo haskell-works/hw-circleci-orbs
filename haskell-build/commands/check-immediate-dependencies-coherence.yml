@@ -3,27 +3,25 @@ steps:
   - run:
       name: Check immediate dependencies coherence
       command: |
-        cp cabal.project enable.cabal.project
-        cp cabal.project disable.cabal.project
-        cabal new-freeze --project-file enable.cabal.project --enable-tests --enable-benchmarks
-        cabal new-freeze --project-file disable.cabal.project --disable-tests --disable-benchmarks
-        (diff <(sed 's/,*$//g' disable.cabal.project.freeze) <(sed 's/,*$//g' enable.cabal.project.freeze) || true) \
-          | (grep "<" || true)                                                  \
-          | (grep -v 'constraints:' || true)                                    \
-          | tr -s ' '                                                           \
-          | cut -d ' ' -f 2                                                     \
-          | cut -d '.' -f 2                                                     \
+
+        get_deps() {
+          cat ./dist-newstyle/cache/plan.json | jq -r '(."install-plan" | map({(.id): {"name": ."pkg-name", "version": ."pkg-version"}}) | add) as $dict | ."install-plan"[] | . + {"component-type": (."component-name")} | select(."pkg-src"."type" == "local") | select(."component-name" or false) | select(."component-name"|split(":")[0]|startswith("test")|not) | .depends[] | $dict[.] | "\(.name) \(.version)"' | sort -u
+        }
+
+        cabal v2-configure
+        get_deps > /tmp/normal-deps.txt
+
+        cabal v2-configure --enable-tests --enable-benchmarks
+        get_deps > /tmp/enabled-deps.txt
+
+        (diff /tmp/normal-deps.txt /tmp/enabled-deps.txt || true) \
+          | (grep "<" || true)                                    \
+          | cut -d ' ' -f 2                                       \
           | sort > /tmp/changing-dependencies.txt
-        cabal-plan info | sed -n '/^CompNameLib$/,/^$/ p'                       \
-          | (grep '  ' || true)                                                 \
-          | sed 's|^  ||g'                                                      \
-          | rev                                                                 \
-          | cut -d '-' -f 2-                                                    \
-          | rev                                                                 \
-          | sort > /tmp/immediate-dependencies.txt
-        touch .circleci/whitelist-dependencies.txt
-        comm -13 <(sort .circleci/whitelist-dependencies.txt) /tmp/immediate-dependencies.txt > /tmp/important-dependencies.txt
-        comm -12 /tmp/changing-dependencies.txt /tmp/important-dependencies.txt > /tmp/incoherent-dependencies.txt
+
+        touch .circleci/whitelist-dependencies.txt <(sort .circleci/whitelist-dependencies.txt) \
+          | (grep "<" || true)                                    \
+          | sort > /tmp/incoherent-dependencies.txt
 
         echo "Changing dependencies: "
         sed 's|^|  |g' /tmp/changing-dependencies.txt
