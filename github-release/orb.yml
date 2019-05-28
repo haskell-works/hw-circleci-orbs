@@ -41,6 +41,10 @@ common-params: &common-params
     description: Set true if the release is a pre-release.
     type: boolean
     default: false
+  lockstep-versions:
+    description: Set true if the versions are in lockstep.
+    type: boolean
+    default: false
   soft:
     description: Stop uploading if the repository already has release with the specified tag.
     type: boolean
@@ -55,6 +59,10 @@ commands:
         description: Cabal file name (including the .cabal extension)
         type: string
         default: ""
+      lockstep-versions:
+        description: Set true if the versions are in lockstep.
+        type: boolean
+        default: false
     steps:
       - when:
           condition: << parameters.cabal-file >>
@@ -75,9 +83,19 @@ commands:
             - run:
                 name: Searching for Cabal file to build
                 command: |
-                  BUILD_CABAL_FILE=$((ls ${CIRCLE_PROJECT_REPONAME}.cabal || ls *.cabal) | head -n 1)
-                  ## What to do with multiple cabal packages?
-                  # BUILD_CABAL_FILE=$((ls ${CIRCLE_PROJECT_REPONAME}.cabal || ls *.cabal || find . -type f -name '*.cabal') | head -n 1)
+                  LOCKSTEP_VERSIONS="<< parameters.lockstep-versions >>"
+                  if [ "$LOCKSTEP_VERSIONS" == "true" ]; then
+                    for x in **/*.cabal; do echo $x; done | grep -v '^dist' > cabal.files
+                    cat cabal.files | xargs grep '^version:' | cut -d ':' -f 3 | sed 's|^ \+||g' | sed 's| \+||g' | sort | uniq > cabal.versions
+                    if [ "$(cat cabal.versions | wc -l | xargs)" != 1 ]; then
+                      echo "Multiple versions detected in lockstep build:"
+                      cat cabal.versions | sed 's|^|  |g'
+                      exit 1
+                    fi
+                    BUILD_CABAL_FILE="$(cat cabal.files | head -n 1)"
+                  else
+                    BUILD_CABAL_FILE="$((ls ${CIRCLE_PROJECT_REPONAME}.cabal || ls *.cabal) | head -n 1)"
+                  fi
                   if [ "$BUILD_CABAL_FILE" = "" ]; then
                     echo "Could not find .cabal file"
                     exit 1
@@ -272,6 +290,7 @@ jobs:
           draft: << parameters.draft >>
           pre-release: << parameters.pre-release >>
           soft: << parameters.soft >>
+          lockstep-versions: << parameters.lockstep-versions >>
 
   release:
     parameters:
