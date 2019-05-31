@@ -11,6 +11,9 @@ commands:
   upload:
     description: Uploads package to Hackage
     parameters:
+      server:
+        description: Hackage server
+        type: string
       username:
         description: Hackage username
         type: string
@@ -28,14 +31,19 @@ commands:
           command: |
             for PACKAGE_TARBALL in $(find ./build/sdist/ -name "*.tar.gz"); do
               PACKAGE_NAME=$(basename ${PACKAGE_TARBALL%.*.*})
-              HACKAGE_STATUS=$(curl --silent --head -w %{http_code} -XGET http://hackage.haskell.org/package/$PACKAGE_NAME -o /dev/null)
+
+              if [ -z "<<# parameters.publish >>true<</ parameters.publish >>" ];
+                then TARGET_URL="<< parameters.server >>/packages/candidates";
+                else TARGET_URL="<< parameters.server >>/packages/upload";
+              fi
+
+              HACKAGE_STATUS=$(curl --silent --head -w %{http_code} -XGET --anyauth --user << parameters.username >>:<< parameters.password >> << parameters.server >>/package/$PACKAGE_NAME -o /dev/null)
               if [ "$HACKAGE_STATUS" = "404" ]; then
-                cabal upload \
-                  --username "<< parameters.username >>" \
-                  --password "<< parameters.password >>" \
-                  <<# parameters.publish >> --publish <</ parameters.publish >> \
-                  $PACKAGE_TARBALL
-                echo "Published $PACKAGE_NAME"
+
+                echo "Uploading $PACKAGE_NAME to $TARGET_URL"
+
+                curl -X POST -f --user << parameters.username >>:<< parameters.password >> $TARGET_URL -F "package=@$PACKAGE_TARBALL"
+                echo "Uploaded $PACKAGE_NAME"
               else
                 echo "Package $PACKAGE_NAME" already exists on Hackage.
               fi
@@ -63,6 +71,10 @@ jobs:
       executor:
         type: executor
         default: default
+      server:
+        description: Hackage server
+        type: string
+        default: ${HACKAGE_SERVER:-http://hackage.haskell.org}
       username:
         description: Hackage username
         type: string
@@ -90,6 +102,7 @@ jobs:
           condition: << parameters.after-checkout >>
           steps: << parameters.after-checkout >>
       - upload:
+          server: << parameters.server >>
           username: << parameters.username >>
           password: << parameters.password >>
           publish: << parameters.publish >>
