@@ -6,12 +6,21 @@ parameters:
   cabal-threads:
     description: Number of Cabal threads.
     type: integer
+  build-component:
+    description: Component name to build ("all" by default)
+    type: string
   cabal-build-extra:
     description: Extra CLI parameters to pass to the "cabal v2-build" command.
     type: string
   cabal-test-extra:
     description: Extra CLI parameters to pass to the "cabal v2-test" command.
     type: string
+  build-dependencies-first:
+    description: |
+      Build project first with "--dependencies-only".
+      This is useful for making sure that dependencies are cached even if the priject doesn't compile,
+      but can get in a way in some situations.
+    type: boolean
   fail-incoherent-builds:
     description: Fail the build when immediate dependencies are incoherent
     type: boolean
@@ -115,7 +124,7 @@ steps:
   - run:
       name: Configuring project
       command: |
-        cabal v2-configure all << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG --dependencies-only -j<< parameters.cabal-threads >>
+        cabal v2-configure << parameters.build-component >> << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
 
   - when:
       name: Restore binary cache
@@ -127,39 +136,28 @@ steps:
             binary-cache-threads: << parameters.binary-cache-threads >>
             binary-cache-opts: << parameters.binary-cache-opts >>
 
-  - run:
-      command: |
-        cabal v2-build all << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG --dependencies-only -j<< parameters.cabal-threads >>
-
   - when:
-      name: Save binary cache
-      condition: << parameters.binary-cache-uri >>
+      name: Building dependencies first
+      condition: << parameters.build-dependencies-first >>
       steps:
-        - save-binary-cache:
-            binary-cache-uri: << parameters.binary-cache-uri >>
-            binary-cache-region: << parameters.binary-cache-region >>
-            binary-cache-threads: << parameters.binary-cache-threads >>
-            binary-cache-opts: << parameters.binary-cache-opts >>
+        - run:
+            name: Building dependencies
+            command: cabal v2-build << parameters.build-component >> << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG --dependencies-only -j<< parameters.cabal-threads >>
 
-  - run:
-      name: Configuring project
-      command: |
-        cabal v2-configure all << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
-
-  - when:
-      name: Restore binary cache
-      condition: << parameters.binary-cache-uri >>
-      steps:
-        - restore-binary-cache:
-            binary-cache-uri: << parameters.binary-cache-uri >>
-            binary-cache-region: << parameters.binary-cache-region >>
-            binary-cache-threads: << parameters.binary-cache-threads >>
-            binary-cache-opts: << parameters.binary-cache-opts >>
+        - when:
+            name: Save binary cache
+            condition: << parameters.binary-cache-uri >>
+            steps:
+              - save-binary-cache:
+                  binary-cache-uri: << parameters.binary-cache-uri >>
+                  binary-cache-region: << parameters.binary-cache-region >>
+                  binary-cache-threads: << parameters.binary-cache-threads >>
+                  binary-cache-opts: << parameters.binary-cache-opts >>
 
   - run:
       name: Building project
       command: |
-        cabal v2-build all << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+        cabal v2-build << parameters.build-component >> << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
 
   - when:
       name: Save binary cache
@@ -183,7 +181,7 @@ steps:
             name: Running unit tests
             command: |
               if cat ./build/build-info.json | jq --exit-status 'select(."component-type" == "test") | []' > /dev/null; then
-                cabal v2-test all << parameters.cabal-test-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+                cabal v2-test << parameters.build-component >> << parameters.cabal-test-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
               else
                 echo "No tests found"
               fi

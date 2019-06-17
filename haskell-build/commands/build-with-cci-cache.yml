@@ -6,12 +6,21 @@ parameters:
   cabal-threads:
     description: Number of Cabal threads.
     type: integer
+  build-component:
+    description: Component name to build ("all" by default)
+    type: string
   cabal-build-extra:
     description: Extra CLI parameters to pass to the "cabal v2-build" command.
     type: string
   cabal-test-extra:
     description: Extra CLI parameters to pass to the "cabal v2-test" command.
     type: string
+  build-dependencies-first:
+    description: |
+      Build project first with "--dependencies-only".
+      This is useful for making sure that dependencies are cached even if the priject doesn't compile,
+      but can get in a way in some situations.
+    type: boolean
   fail-incoherent-builds:
     description: Fail the build when immediate dependencies are incoherent
     type: boolean
@@ -71,9 +80,21 @@ steps:
       steps:
         - check-immediate-dependencies-coherence
 
-  - run:
-      command: |
-        cabal v2-build all << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG --dependencies-only -j<< parameters.cabal-threads >>
+  - when:
+      name: Building dependencies
+      condition: << parameters.build-dependencies-first >>
+      steps:
+        - run:
+            name: Building dependencies
+            command: cabal v2-build << parameters.build-component >> << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG --dependencies-only -j<< parameters.cabal-threads >>
+
+  - unless:
+      name: Building project
+      condition: << parameters.build-dependencies-first >>
+      steps:
+        - run:
+            name: Building dependencies
+            command: cabal v2-build << parameters.build-component >> << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
 
   - save_cache:
       key: dot-cabal-{{checksum "./build/build.env"}}-{{checksum "cabal.project"}}-{{checksum "cabal.project.freeze"}}
@@ -83,10 +104,14 @@ steps:
       key: dot-cabal-{{checksum "./build/build.env"}}
       paths: [~/.cabal/packages, ~/.cabal/store]
 
-  - run:
+  - when:
       name: Building project
-      command: |
-        cabal v2-build all << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+      condition: << parameters.build-dependencies-first >>
+      steps:
+        - run:
+            name: Building project
+            command: |
+              cabal v2-build << parameters.build-component >> << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
 
   - when:
       name: Running after-build hook steps
@@ -100,7 +125,7 @@ steps:
             name: Running unit tests
             command: |
               if cat ./build/build-info.json | jq --exit-status 'select(."component-type" == "test") | []' > /dev/null; then
-                cabal v2-test all << parameters.cabal-test-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+                cabal v2-test << parameters.build-component >> << parameters.cabal-test-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
               else
                 echo "No tests found"
               fi
