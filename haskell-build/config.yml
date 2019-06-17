@@ -138,7 +138,7 @@ jobs:
             - build-with-binary-cache:
                 cache-version:            << parameters.cache-version >>
                 cabal-threads:            << parameters.cabal-threads >>
-                build-component:    << parameters.build-component >>
+                build-component:          << parameters.build-component >>
                 cabal-build-extra:        << parameters.cabal-build-extra >>
                 cabal-test-extra:         << parameters.cabal-test-extra >>
                 build-dependencies-first: << parameters.build-dependencies-first >>
@@ -174,7 +174,7 @@ jobs:
             - build-with-cci-cache:
                 cache-version:            << parameters.cache-version >>
                 cabal-threads:            << parameters.cabal-threads >>
-                build-component:    << parameters.build-component >>
+                build-component:          << parameters.build-component >>
                 cabal-build-extra:        << parameters.cabal-build-extra >>
                 cabal-test-extra:         << parameters.cabal-test-extra >>
                 build-dependencies-first: << parameters.build-dependencies-first >>
@@ -205,7 +205,7 @@ jobs:
             - build-with-cci-cache:
                 cache-version:            << parameters.cache-version >>
                 cabal-threads:            << parameters.cabal-threads >>
-                build-component:    << parameters.build-component >>
+                build-component:          << parameters.build-component >>
                 cabal-build-extra:        << parameters.cabal-build-extra >>
                 cabal-test-extra:         << parameters.cabal-test-extra >>
                 build-dependencies-first: << parameters.build-dependencies-first >>
