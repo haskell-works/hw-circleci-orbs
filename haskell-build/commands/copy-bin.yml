@@ -10,7 +10,12 @@ steps:
         mkdir -p $(dirname << parameters.workspace-dir >>)
 
         # Copy all the relevant executables and copy them to the dist folder
-        cp `cat ./build/build-info.json | jq -r '. | select(."component-type" == "exe") | ."bin-file"'` ./build/dist
+        for i in $(cat ./build/build-info.json | jq -r '. | select(."component-type" == "exe") | ."bin-file"'); do
+          if [ -e "$i" ]; then
+            cp "$i" ./build/dist/
+          fi
+        done
+
         if [[ ! $(realpath ./build) -ef $(realpath ./<< parameters.workspace-dir >>) ]]; then
           mv ./build ./<< parameters.workspace-dir >>
         fi
