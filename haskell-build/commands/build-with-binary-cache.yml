@@ -118,12 +118,6 @@ steps:
                 )
               done
 
-
-  - when:
-      name: Running before-build hook steps
-      condition: << parameters.before-build >>
-      steps: << parameters.before-build >>
-
   - when:
       name: Check immediate dependencies coherence
       condition: << parameters.fail-incoherent-builds >>
@@ -151,6 +145,11 @@ steps:
             binary-cache-region: << parameters.binary-cache-region >>
             binary-cache-threads: << parameters.binary-cache-threads >>
             binary-cache-opts: << parameters.binary-cache-opts >>
+
+  - when:
+      name: Running before-build hook steps
+      condition: << parameters.before-build >>
+      steps: << parameters.before-build >>
 
   - when:
       name: Building dependencies first

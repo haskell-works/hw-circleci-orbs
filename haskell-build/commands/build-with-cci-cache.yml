@@ -74,15 +74,15 @@ steps:
         - dist-{{checksum "./build/build.env"}}-{{checksum "cabal.project"}}
 
   - when:
-      name: Running before-build hook steps
-      condition: << parameters.before-build >>
-      steps: << parameters.before-build >>
-
-  - when:
       name: Check immediate dependencies coherence
       condition: << parameters.fail-incoherent-builds >>
       steps:
         - check-immediate-dependencies-coherence
+
+  - when:
+      name: Running before-build hook steps
+      condition: << parameters.before-build >>
+      steps: << parameters.before-build >>
 
   - when:
       name: Building dependencies
