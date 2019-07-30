@@ -6,9 +6,13 @@ parameters:
   cabal-threads:
     description: Number of Cabal threads.
     type: integer
-  build-component:
-    description: Component name to build ("all" by default)
+  build-components:
+    description: Component names to build ("all" by default)
     type: string
+  build-components-separately:
+    description: Build specified components separately
+    type: boolean
+    default: false
   cabal-build-extra:
     description: Extra CLI parameters to pass to the "cabal v2-build" command.
     type: string
@@ -86,7 +90,14 @@ steps:
       steps:
         - run:
             name: Building dependencies
-            command: cabal v2-build << parameters.build-component >> << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG --dependencies-only -j<< parameters.cabal-threads >>
+            command: |
+              if << parameters.build-components-separately >>; then
+                for _component_name in << parameters.build-components >>; do
+                  cabal v2-build "$_component_name" << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG --dependencies-only -j<< parameters.cabal-threads >>
+                done
+              else
+                cabal v2-build << parameters.build-components >> << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG --dependencies-only -j<< parameters.cabal-threads >>
+              fi
 
   - unless:
       name: Building project
@@ -94,7 +105,14 @@ steps:
       steps:
         - run:
             name: Building dependencies
-            command: cabal v2-build << parameters.build-component >> << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+            command: |
+              if << parameters.build-components-separately >>; then
+                for _component_name in << parameters.build-components >>; do
+                  cabal v2-build "$_component_name" << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+                done
+              else
+                cabal v2-build << parameters.build-components >> << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+              fi
 
   - save_cache:
       key: dot-cabal-{{checksum "./build/build.env"}}-{{checksum "cabal.project"}}-{{checksum "cabal.project.freeze"}}
@@ -111,7 +129,13 @@ steps:
         - run:
             name: Building project
             command: |
-              cabal v2-build << parameters.build-component >> << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+              if << parameters.build-components-separately >>; then
+                for _component_name in << parameters.build-components >>; do
+                  cabal v2-build "$_component_name" << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+                done
+              else
+                cabal v2-build << parameters.build-components >> << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+              fi
 
   - when:
       name: Running after-build hook steps
@@ -125,7 +149,13 @@ steps:
             name: Running unit tests
             command: |
               if cat ./build/build-info.json | jq --exit-status 'select(."component-type" == "test") | []' > /dev/null; then
-                cabal v2-test << parameters.build-component >> << parameters.cabal-test-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+                if << parameters.build-components-separately >>; then
+                  for _component_name in << parameters.build-components >>; do
+                    cabal v2-test "$_component_name" << parameters.cabal-test-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+                  done
+                else
+                  cabal v2-test << parameters.build-components >> << parameters.cabal-test-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+                fi
               else
                 echo "No tests found"
               fi

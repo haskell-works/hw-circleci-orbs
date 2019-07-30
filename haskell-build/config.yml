@@ -17,10 +17,14 @@ build-params: &build-params
     description: Number of Cabal threads.
     type: integer
     default: 4
-  build-component:
-    description: Component name to build ("all" by default)
+  build-components:
+    description: Component names to build ("all" by default)
     type: string
     default: all
+  build-components-separately:
+    description: Build specified components separately
+    type: boolean
+    default: false
   cabal-build-extra:
     description: Extra CLI parameters to pass to the "cabal v2-build" command.
     type: string
@@ -142,24 +146,25 @@ jobs:
 
           build-steps:
             - build-with-binary-cache:
-                cache-version:            << parameters.cache-version >>
-                cabal-threads:            << parameters.cabal-threads >>
-                build-component:          << parameters.build-component >>
-                cabal-build-extra:        << parameters.cabal-build-extra >>
-                cabal-test-extra:         << parameters.cabal-test-extra >>
-                build-dependencies-first: << parameters.build-dependencies-first >>
-                fail-incoherent-builds:   << parameters.fail-incoherent-builds >>
-                run-tests:                << parameters.run-tests >>
-                run-check:                << parameters.run-check >>
-                before-build:             << parameters.before-build >>
-                after-build:              << parameters.after-build >>
-                after-test:               << parameters.after-test >>
-                cabal-cache-tag:          << parameters.cabal-cache-tag >>
-                binary-cache-uri:         << parameters.binary-cache-uri >>
-                binary-cache-uri-suffix:  << parameters.binary-cache-uri-suffix >>
-                binary-cache-region:      << parameters.binary-cache-region >>
-                binary-cache-threads:     << parameters.binary-cache-threads >>
-                binary-cache-opts:        << parameters.binary-cache-opts >>
+                cache-version:                << parameters.cache-version >>
+                cabal-threads:                << parameters.cabal-threads >>
+                build-components:             << parameters.build-components >>
+                build-components-separately:  << parameters.build-components-separately >>
+                cabal-build-extra:            << parameters.cabal-build-extra >>
+                cabal-test-extra:             << parameters.cabal-test-extra >>
+                build-dependencies-first:     << parameters.build-dependencies-first >>
+                fail-incoherent-builds:       << parameters.fail-incoherent-builds >>
+                run-tests:                    << parameters.run-tests >>
+                run-check:                    << parameters.run-check >>
+                before-build:                 << parameters.before-build >>
+                after-build:                  << parameters.after-build >>
+                after-test:                   << parameters.after-test >>
+                cabal-cache-tag:              << parameters.cabal-cache-tag >>
+                binary-cache-uri:             << parameters.binary-cache-uri >>
+                binary-cache-uri-suffix:      << parameters.binary-cache-uri-suffix >>
+                binary-cache-region:          << parameters.binary-cache-region >>
+                binary-cache-threads:         << parameters.binary-cache-threads >>
+                binary-cache-opts:            << parameters.binary-cache-opts >>
 
   build-with-cci-cache:
     description: Build with CircleCI cache.
@@ -179,18 +184,19 @@ jobs:
 
           build-steps:
             - build-with-cci-cache:
-                cache-version:            << parameters.cache-version >>
-                cabal-threads:            << parameters.cabal-threads >>
-                build-component:          << parameters.build-component >>
-                cabal-build-extra:        << parameters.cabal-build-extra >>
-                cabal-test-extra:         << parameters.cabal-test-extra >>
-                build-dependencies-first: << parameters.build-dependencies-first >>
-                fail-incoherent-builds:   << parameters.fail-incoherent-builds >>
-                run-tests:                << parameters.run-tests >>
-                run-check:                << parameters.run-check >>
-                before-build:             << parameters.before-build >>
-                after-build:              << parameters.after-build >>
-                after-test:               << parameters.after-test >>
+                cache-version:                << parameters.cache-version >>
+                cabal-threads:                << parameters.cabal-threads >>
+                build-components:             << parameters.build-components >>
+                build-components-separately:  << parameters.build-components-separately >>
+                cabal-build-extra:            << parameters.cabal-build-extra >>
+                cabal-test-extra:             << parameters.cabal-test-extra >>
+                build-dependencies-first:     << parameters.build-dependencies-first >>
+                fail-incoherent-builds:       << parameters.fail-incoherent-builds >>
+                run-tests:                    << parameters.run-tests >>
+                run-check:                    << parameters.run-check >>
+                before-build:                 << parameters.before-build >>
+                after-build:                  << parameters.after-build >>
+                after-test:                   << parameters.after-test >>
 
   build:
     description: OBSOLETE. Use 'build-with-cci-cache'. Build with CircleCI cache.
@@ -212,7 +218,8 @@ jobs:
             - build-with-cci-cache:
                 cache-version:            << parameters.cache-version >>
                 cabal-threads:            << parameters.cabal-threads >>
-                build-component:          << parameters.build-component >>
+                build-components:         << parameters.build-components >>
+                build-components-separately:  << parameters.build-components-separately >>
                 cabal-build-extra:        << parameters.cabal-build-extra >>
                 cabal-test-extra:         << parameters.cabal-test-extra >>
                 build-dependencies-first: << parameters.build-dependencies-first >>
