@@ -160,6 +160,7 @@ steps:
             command: |
               if << parameters.build-components-separately >>; then
                 for _component_name in << parameters.build-components >>; do
+                  echo "Building $_component_name"
                   cabal v2-build "$_component_name" << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG --dependencies-only -j<< parameters.cabal-threads >>
                 done
               else
@@ -182,6 +183,7 @@ steps:
       command: |
         if << parameters.build-components-separately >>; then
           for _component_name in << parameters.build-components >>; do
+            echo "Building $_component_name"
             cabal v2-build "$_component_name" << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
           done
         else
