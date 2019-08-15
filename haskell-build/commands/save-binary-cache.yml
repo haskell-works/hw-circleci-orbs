@@ -27,3 +27,4 @@ steps:
           $(if [ ! -z << parameters.binary-cache-uri      >> ]; then echo -n --archive-uri  "<< parameters.binary-cache-uri     >><< parameters.binary-cache-uri-suffix >>" ; fi) \
           $(if [ ! -z << parameters.binary-cache-region   >> ]; then echo -n --region       "<< parameters.binary-cache-region  >>"; fi) \
           <<# parameters.binary-cache-opts >> << parameters.binary-cache-opts >>  <</ parameters.binary-cache-opts >>
+      when: always
