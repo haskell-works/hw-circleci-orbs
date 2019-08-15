@@ -19,12 +19,6 @@ parameters:
   cabal-test-extra:
     description: Extra CLI parameters to pass to the "cabal v2-test" command.
     type: string
-  build-dependencies-first:
-    description: |
-      Build project first with "--dependencies-only".
-      This is useful for making sure that dependencies are cached even if the priject doesn't compile,
-      but can get in a way in some situations.
-    type: boolean
   fail-incoherent-builds:
     description: Fail the build when immediate dependencies are incoherent
     type: boolean
@@ -151,44 +145,28 @@ steps:
       condition: << parameters.before-build >>
       steps: << parameters.before-build >>
 
-  - when:
-      name: Building dependencies first
-      condition: << parameters.build-dependencies-first >>
-      steps:
-        - run:
-            name: Building dependencies
-            command: |
-              if << parameters.build-components-separately >>; then
-                for _component_name in << parameters.build-components >>; do
-                  echo "Building $_component_name"
-                  cabal v2-build "$_component_name" << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG --dependencies-only -j<< parameters.cabal-threads >>
-                done
-              else
-                cabal v2-build << parameters.build-components >> << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG --dependencies-only -j<< parameters.cabal-threads >>
-              fi
-
-        - when:
-            name: Save binary cache
-            condition: << parameters.binary-cache-uri >>
-            steps:
-              - save-binary-cache:
-                  binary-cache-uri: << parameters.binary-cache-uri >>
-                  binary-cache-uri-suffix: << parameters.binary-cache-uri-suffix >>
-                  binary-cache-region: << parameters.binary-cache-region >>
-                  binary-cache-threads: << parameters.binary-cache-threads >>
-                  binary-cache-opts: << parameters.binary-cache-opts >>
-
   - run:
       name: Building project
       command: |
         if << parameters.build-components-separately >>; then
           for _component_name in << parameters.build-components >>; do
-            echo "Building $_component_name"
+            echo "Building component $_component_name"
             cabal v2-build "$_component_name" << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
           done
         else
           cabal v2-build << parameters.build-components >> << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
         fi
+
+  - when:
+      name: Save binary cache
+      condition: << parameters.binary-cache-uri >>
+      steps:
+        - save-binary-cache:
+            binary-cache-uri: << parameters.binary-cache-uri >>
+            binary-cache-uri-suffix: << parameters.binary-cache-uri-suffix >>
+            binary-cache-region: << parameters.binary-cache-region >>
+            binary-cache-threads: << parameters.binary-cache-threads >>
+            binary-cache-opts: << parameters.binary-cache-opts >>
 
   - when:
       name: Save binary cache

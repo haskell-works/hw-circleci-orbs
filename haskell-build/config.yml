@@ -37,7 +37,8 @@ build-params: &build-params
     description: |
       Build project first with "--dependencies-only".
       This is useful for making sure that dependencies are cached even if the priject doesn't compile,
-      but can get in a way in some situations.
+      but can get in a way in some situations.  This parameter is only relevant to `build-with-cci-cache`
+      builds and is ignored by `build-with-binary-cache` builds.
     type: boolean
     default: true
   fail-incoherent-builds:
@@ -152,7 +153,6 @@ jobs:
                 build-components-separately:  << parameters.build-components-separately >>
                 cabal-build-extra:            << parameters.cabal-build-extra >>
                 cabal-test-extra:             << parameters.cabal-test-extra >>
-                build-dependencies-first:     << parameters.build-dependencies-first >>
                 fail-incoherent-builds:       << parameters.fail-incoherent-builds >>
                 run-tests:                    << parameters.run-tests >>
                 run-check:                    << parameters.run-check >>
