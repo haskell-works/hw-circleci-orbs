@@ -25,6 +25,10 @@ build-params: &build-params
     description: Build specified components separately
     type: boolean
     default: false
+  test-no-output-timeout:
+    description: No output timeout for tests
+    type: integer
+    default: 600
   cabal-build-extra:
     description: Extra CLI parameters to pass to the "cabal v2-build" command.
     type: string
@@ -151,6 +155,7 @@ jobs:
                 cabal-threads:                << parameters.cabal-threads >>
                 build-components:             << parameters.build-components >>
                 build-components-separately:  << parameters.build-components-separately >>
+                test-no-output-timeout:       << parameters.test-no-output-timeout >>
                 cabal-build-extra:            << parameters.cabal-build-extra >>
                 cabal-test-extra:             << parameters.cabal-test-extra >>
                 fail-incoherent-builds:       << parameters.fail-incoherent-builds >>
@@ -188,6 +193,7 @@ jobs:
                 cabal-threads:                << parameters.cabal-threads >>
                 build-components:             << parameters.build-components >>
                 build-components-separately:  << parameters.build-components-separately >>
+                test-no-output-timeout:       << parameters.test-no-output-timeout >>
                 cabal-build-extra:            << parameters.cabal-build-extra >>
                 cabal-test-extra:             << parameters.cabal-test-extra >>
                 build-dependencies-first:     << parameters.build-dependencies-first >>
@@ -216,16 +222,17 @@ jobs:
 
           build-steps:
             - build-with-cci-cache:
-                cache-version:            << parameters.cache-version >>
-                cabal-threads:            << parameters.cabal-threads >>
-                build-components:         << parameters.build-components >>
+                cache-version:                << parameters.cache-version >>
+                cabal-threads:                << parameters.cabal-threads >>
+                build-components:             << parameters.build-components >>
                 build-components-separately:  << parameters.build-components-separately >>
-                cabal-build-extra:        << parameters.cabal-build-extra >>
-                cabal-test-extra:         << parameters.cabal-test-extra >>
-                build-dependencies-first: << parameters.build-dependencies-first >>
-                fail-incoherent-builds:   << parameters.fail-incoherent-builds >>
-                run-tests:                << parameters.run-tests >>
-                run-check:                << parameters.run-check >>
-                before-build:             << parameters.before-build >>
-                after-build:              << parameters.after-build >>
-                after-test:               << parameters.after-test >>
+                test-no-output-timeout:       << parameters.test-no-output-timeout >>
+                cabal-build-extra:            << parameters.cabal-build-extra >>
+                cabal-test-extra:             << parameters.cabal-test-extra >>
+                build-dependencies-first:     << parameters.build-dependencies-first >>
+                fail-incoherent-builds:       << parameters.fail-incoherent-builds >>
+                run-tests:                    << parameters.run-tests >>
+                run-check:                    << parameters.run-check >>
+                before-build:                 << parameters.before-build >>
+                after-build:                  << parameters.after-build >>
+                after-test:                   << parameters.after-test >>
