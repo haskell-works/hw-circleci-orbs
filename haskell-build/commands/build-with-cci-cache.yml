@@ -13,6 +13,10 @@ parameters:
     description: Build specified components separately
     type: boolean
     default: false
+  test-no-output-timeout:
+    description: No output timeout for tests
+    type: integer
+    default: 600
   cabal-build-extra:
     description: Extra CLI parameters to pass to the "cabal v2-build" command.
     type: string
@@ -162,6 +166,7 @@ steps:
               else
                 echo "No tests found"
               fi
+            no_output_timeout: << parameters.test-no-output-timeout >>
 
   - when:
       name: Running after-test hook steps
