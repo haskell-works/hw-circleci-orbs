@@ -59,7 +59,7 @@ commands:
           command: |
               PROJECT_DIR=$PWD
               mkdir -p $PROJECT_DIR/build/sdist
-              for i in $(git ls-files | grep .cabal); do
+              for i in $(git ls-files | grep '\.cabal'); do
                 cd $PROJECT_DIR && cd `dirname $i`
                 cabal check && cabal new-sdist -o $PROJECT_DIR/build/sdist
               done;
