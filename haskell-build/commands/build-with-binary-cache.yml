@@ -100,6 +100,20 @@ steps:
         - ~/.cabal/packages/hackage.haskell.org/01-index.tar.idx
         - ~/.cabal/packages/hackage.haskell.org/root.json
 
+  - when:
+      name: Configure with immediate dependencies coherence check
+      condition: << parameters.fail-incoherent-builds >>
+      steps:
+        - check-immediate-dependencies-coherence
+
+  - unless:
+      name: Configure without immediate dependencies coherence check
+      condition: << parameters.fail-incoherent-builds >>
+      steps:
+        - run:
+            name: Configuring the build
+            command: cabal v2-configure
+
   - set-project-env
 
   - when:
@@ -115,12 +129,6 @@ steps:
                   cabal check
                 )
               done
-
-  - when:
-      name: Check immediate dependencies coherence
-      condition: << parameters.fail-incoherent-builds >>
-      steps:
-        - check-immediate-dependencies-coherence
 
   - run:
       name: Configuring project

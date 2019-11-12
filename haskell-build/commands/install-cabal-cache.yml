@@ -10,7 +10,7 @@ steps:
       name: Install binary cache tool (cabal-cache)
       command: |
         if [ "<< parameters.tag >>" = "latest" ]; then
-          CACHE_TOOL_TAG=$(curl -s -X GET https://api.github.com/repos/haskell-works/cabal-cache/releases/latest | jq -rc .tag_name)
+          CACHE_TOOL_TAG=$(curl -s --retry 3 -X GET https://api.github.com/repos/haskell-works/cabal-cache/releases/latest | jq -rc .tag_name)
         else
           CACHE_TOOL_TAG="<< parameters.tag >>"
         fi
