@@ -1,8 +1,4 @@
 steps:
-  - run:
-      name: Configuring the build
-      command: cabal v2-configure
-
   - describe-build
 
   - run:

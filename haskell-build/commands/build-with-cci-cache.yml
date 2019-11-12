@@ -155,7 +155,7 @@ steps:
         - run:
             name: Running unit tests
             command: |
-              if cat ./build/build-info.json | jq --exit-status 'select(."component-type" == "test") | []' > /dev/null; then
+              if [[ $(cat ./build/build-info.json | jq -rc 'select(."component-type" == "test")' | wc -l) -gt 0 ]]; then
                 if << parameters.build-components-separately >>; then
                   for _component_name in << parameters.build-components >>; do
                     cabal v2-test "$_component_name" << parameters.cabal-test-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
