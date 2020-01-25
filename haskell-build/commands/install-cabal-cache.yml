@@ -16,5 +16,5 @@ steps:
         fi
         echo "Downloading: https://github.com/haskell-works/cabal-cache/releases/download/${CACHE_TOOL_TAG}/cabal-cache_${BUILD_ARCH}_${BUILD_OS_NAME}.tar.gz"
         curl -Ls https://github.com/haskell-works/cabal-cache/releases/download/${CACHE_TOOL_TAG}/cabal-cache_${BUILD_ARCH}_${BUILD_OS_NAME}.tar.gz | tar -xvz -C /tmp/
-        sudo cp /tmp/cabal-cache /root/.local/bin/
+        cp /tmp/cabal-cache /usr/local/bin/
         cabal-cache version
