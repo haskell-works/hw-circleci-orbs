@@ -8,12 +8,12 @@ executors:
   ghc-8_2_2:
     docker:
       - image: quay.io/haskell_works/ghc-8.2.2:latest
-  ghc-8_4_4:
-    docker:
-      - image: quay.io/haskell_works/ghc-8.4.4:latest
   ghc-8_4_3:
     docker:
       - image: quay.io/haskell_works/ghc-8.4.3:latest
+  ghc-8_4_4:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.4.4:latest
   ghc-8_6_3:
     docker:
       - image: quay.io/haskell_works/ghc-8.6.3:latest
@@ -29,3 +29,6 @@ executors:
   ghc-8_8_2:
     docker:
       - image: quay.io/haskell_works/ghc-8.8.2:latest
+  ghc-8_8_3:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.8.3:latest
