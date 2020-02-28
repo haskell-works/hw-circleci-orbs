@@ -5,7 +5,7 @@ description: Automates releases to Hackage
 executors:
   default:
     docker:
-      - image: quay.io/haskell_works/ghc-8.4.4:latest
+      - image: quay.io/haskell_works/ghc-8.6.5:latest
 
 commands:
   upload:

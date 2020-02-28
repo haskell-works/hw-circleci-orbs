@@ -81,7 +81,10 @@ build-params: &build-params
     description: Optional steps to run after executing unit tests
     type: steps
     default: []
-
+  build-documentation:
+    description: Build Haddock documentation that can be uploaded to Hackage
+    type: boolean
+    default: false
   use-private-hackage:
     description: Boolean for whether or not to use a private hackage repo.
     type: boolean
@@ -155,6 +158,7 @@ jobs:
                 cabal-threads:                << parameters.cabal-threads >>
                 build-components:             << parameters.build-components >>
                 build-components-separately:  << parameters.build-components-separately >>
+                build-documentation:          << parameters.build-documentation >>
                 test-no-output-timeout:       << parameters.test-no-output-timeout >>
                 cabal-build-extra:            << parameters.cabal-build-extra >>
                 cabal-test-extra:             << parameters.cabal-test-extra >>
@@ -193,6 +197,7 @@ jobs:
                 cabal-threads:                << parameters.cabal-threads >>
                 build-components:             << parameters.build-components >>
                 build-components-separately:  << parameters.build-components-separately >>
+                build-documentation:          << parameters.build-documentation >>
                 test-no-output-timeout:       << parameters.test-no-output-timeout >>
                 cabal-build-extra:            << parameters.cabal-build-extra >>
                 cabal-test-extra:             << parameters.cabal-test-extra >>
@@ -226,6 +231,7 @@ jobs:
                 cabal-threads:                << parameters.cabal-threads >>
                 build-components:             << parameters.build-components >>
                 build-components-separately:  << parameters.build-components-separately >>
+                build-documentation:          << parameters.build-documentation >>
                 test-no-output-timeout:       << parameters.test-no-output-timeout >>
                 cabal-build-extra:            << parameters.cabal-build-extra >>
                 cabal-test-extra:             << parameters.cabal-test-extra >>

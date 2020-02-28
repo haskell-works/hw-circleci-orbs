@@ -1,0 +1,21 @@
+parameters:
+  build-documentation:
+    description: Build Haddock documentation that can be uploaded to Hackage
+    type: boolean
+steps:
+  - run:
+      name: Override GHC version
+      command: |
+        test -f cabal.project || echo 'packages: .' > cabal.project
+        test -f cabal.project.freeze || touch cabal.project.freeze
+        _ghc_ver=$(ghc --numeric-version)
+        grep -v '^\s*with-compiler:' cabal.project > cabal.project.tmp; mv cabal.project.tmp cabal.project
+        echo "with-compiler: ghc-$_ghc_ver" >> cabal.project
+
+        if << parameters.build-documentation >>; then
+          grep -v '^\s*documentation:' cabal.project > cabal.project.tmp; mv cabal.project.tmp cabal.project
+          echo "documentation: true"                        >> cabal.project
+          echo "haddock-for-hackage: for-hackage"           >> cabal.project
+          echo "program-options"                            >> cabal.project
+          echo "    haddock-options: --hyperlinked-source"  >> cabal.project
+        fi

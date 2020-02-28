@@ -4,7 +4,7 @@ parameters:
     type: string
 steps:
   - run:
-      name: Copying executable
+      name: Copying artefacts
       command: |
         mkdir -p ./build/dist
         mkdir -p $(dirname << parameters.workspace-dir >>)
@@ -13,6 +13,15 @@ steps:
         for i in $(cat ./build/build-info.json | jq -r '. | select(."component-type" == "exe") | ."bin-file"'); do
           if [ -e "$i" ]; then
             cp "$i" ./build/dist/
+          fi
+        done
+
+        # Copy all the relevant executables and copy them to the dist folder
+        for i in $(cat ./build/build-info.json | jq -r '. | select(."component-type" == "lib") | "\(."pkg-name")-\(."pkg-version")"'); do
+          docFile="dist-newstyle/$i-docs.tar.gz"
+          if [ -e "$docFile" ]; then
+            mkdir -p ./build/dist/doc
+            cp "$docFile" ./build/dist/doc/
           fi
         done
 

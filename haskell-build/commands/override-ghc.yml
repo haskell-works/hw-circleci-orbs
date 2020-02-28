@@ -1,9 +1,0 @@
-steps:
-  - run:
-      name: Override GHC version
-      command: |
-        test -f cabal.project || echo 'packages: .' > cabal.project
-        test -f cabal.project.freeze || touch cabal.project.freeze
-        _ghc_ver=$(ghc --numeric-version)
-        grep -v '^\s*with-compiler:' cabal.project > cabal.project.tmp; mv cabal.project.tmp cabal.project
-        echo "with-compiler: ghc-$_ghc_ver" >> cabal.project

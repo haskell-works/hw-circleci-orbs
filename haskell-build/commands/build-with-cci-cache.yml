@@ -13,6 +13,9 @@ parameters:
     description: Build specified components separately
     type: boolean
     default: false
+  build-documentation:
+    description: Build Haddock documentation that can be uploaded to Hackage
+    type: boolean
   test-no-output-timeout:
     description: No output timeout for tests
     type: integer
@@ -49,7 +52,8 @@ parameters:
     type: steps
 
 steps:
-  - override-ghc
+  - set-project-params:
+      build-documentation: << parameters.build-documentation >>
 
   - capture-build-environment:
       cache-version: << parameters.cache-version >>
