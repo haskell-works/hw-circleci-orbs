@@ -24,6 +24,12 @@ commands:
         description: Publish the release. Without this flag a candidate will be created.
         type: boolean
         default: false
+      workspace-name:
+        description: |
+          Workspace name is a name of the workspace folder.
+          Defaults to 'build' to match 'haskell-build' default settings.
+        type: string
+        default: 'build'
     steps:
       - prepare-release
       - run:
@@ -33,9 +39,14 @@ commands:
               PACKAGE_NAME=$(basename ${PACKAGE_TARBALL%.*.*})
 
               if [ -z "<<# parameters.publish >>true<</ parameters.publish >>" ];
-                then TARGET_URL="<< parameters.server >>/packages/candidates";
-                else TARGET_URL="<< parameters.server >>/packages/upload";
+                then
+                  TARGET_URL="<< parameters.server >>/packages/candidates";
+                  DOCS_URL="<< parameters.server >>/package/$PACKAGE_NAME/candidate/docs"
+                else
+                  TARGET_URL="<< parameters.server >>/packages/upload";
+                  DOCS_URL="<< parameters.server >>/package/$PACKAGE_NAME/docs"
               fi
+
 
               HACKAGE_STATUS=$(curl --silent --head -w %{http_code} -XGET --anyauth --user << parameters.username >>:<< parameters.password >> << parameters.server >>/package/$PACKAGE_NAME -o /dev/null)
               if [ "$HACKAGE_STATUS" = "404" ]; then
@@ -44,6 +55,20 @@ commands:
 
                 curl -X POST -f --user << parameters.username >>:<< parameters.password >> $TARGET_URL -F "package=@$PACKAGE_TARBALL"
                 echo "Uploaded $PACKAGE_NAME"
+
+                DOC_FILE_NAME="/tmp/workspace/<< parameters.workspace-name >>/dist/doc/$PACKAGE_NAME-docs.tar.gz"
+                if [ -f "$DOC_FILE_NAME" ]; then
+                  echo "Uploading documentation for $PACKAGE_NAME to $DOCS_URL/$PACKAGE_NAME/docs"
+                  curl -X PUT \
+                    -H 'Content-Type: application/x-tar' \
+                    -H 'Content-Encoding: gzip' \
+                    -u << parameters.username >>:<< parameters.password >> \
+                    --data-binary "@$DOC_FILE_NAME" \
+                    "$DOCS_URL"
+                else
+                  echo "Not uploading documentation for $PACKAGE_NAME: $DOC_FILE_NAME is not found."
+                fi
+
               else
                 echo "Package $PACKAGE_NAME" already exists on Hackage.
               fi
@@ -61,7 +86,7 @@ commands:
               mkdir -p $PROJECT_DIR/build/sdist
               for i in $(git ls-files | grep '\.cabal'); do
                 cd $PROJECT_DIR && cd `dirname $i`
-                cabal check && cabal new-sdist -o $PROJECT_DIR/build/sdist
+                cabal check && cabal v2-sdist -o $PROJECT_DIR/build/sdist
               done;
 
 jobs:
@@ -87,6 +112,18 @@ jobs:
         description: Publish the release. Without this flag a candidate will be created.
         type: boolean
         default: false
+      attach-workspace:
+        description: |
+          Boolean for whether or not to attach to an existing workspace.
+          This is normally used if you want to upload artefacts produced by another job to the release.
+        type: boolean
+        default: false
+      workspace-name:
+        description: |
+          Workspace name is a name of the workspace folder.
+          Defaults to 'build' to match 'haskell-build' default settings.
+        type: string
+        default: 'build'
       after-checkout:
         description: Optional steps to execute after checking out code
         type: steps
@@ -99,6 +136,12 @@ jobs:
     steps:
       - checkout
       - when:
+          name: Attach workspace
+          condition: << parameters.attach-workspace >>
+          steps:
+            - attach_workspace:
+                at: /tmp/workspace
+      - when:
           condition: << parameters.after-checkout >>
           steps: << parameters.after-checkout >>
       - upload:
@@ -106,6 +149,7 @@ jobs:
           username: << parameters.username >>
           password: << parameters.password >>
           publish: << parameters.publish >>
+          workspace-name: << parameters.workspace-name >>
       - when:
           condidion: << parameters.after-upload >>
           steps: << parameters.after-upload >>
