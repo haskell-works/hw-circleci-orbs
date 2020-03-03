@@ -58,7 +58,7 @@ commands:
 
                 DOC_FILE_NAME="/tmp/workspace/<< parameters.workspace-name >>/dist/doc/$PACKAGE_NAME-docs.tar.gz"
                 if [ -f "$DOC_FILE_NAME" ]; then
-                  echo "Uploading documentation for $PACKAGE_NAME to $DOCS_URL/$PACKAGE_NAME/docs"
+                  echo "Uploading documentation for $PACKAGE_NAME to $DOCS_URL"
                   curl -X PUT \
                     -H 'Content-Type: application/x-tar' \
                     -H 'Content-Encoding: gzip' \

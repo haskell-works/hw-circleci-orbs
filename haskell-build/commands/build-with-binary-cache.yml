@@ -139,10 +139,10 @@ steps:
       command: |
         if << parameters.build-components-separately >>; then
           for _component_name in << parameters.build-components >>; do
-            cabal v2-configure "$_component_name" << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+            cabal v2-configure "$_component_name" << parameters.cabal-build-extra >> $_BUILD_EXTRA_CABAL_FLAGS -j<< parameters.cabal-threads >>
           done
         else
-          cabal v2-configure << parameters.build-components >> << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+          cabal v2-configure << parameters.build-components >> << parameters.cabal-build-extra >> $_BUILD_EXTRA_CABAL_FLAGS -j<< parameters.cabal-threads >>
         fi
 
   - when:
@@ -167,10 +167,10 @@ steps:
         if << parameters.build-components-separately >>; then
           for _component_name in << parameters.build-components >>; do
             echo "Building component $_component_name"
-            cabal v2-build "$_component_name" << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+            cabal v2-build "$_component_name" << parameters.cabal-build-extra >> $_BUILD_EXTRA_CABAL_FLAGS -j<< parameters.cabal-threads >>
           done
         else
-          cabal v2-build << parameters.build-components >> << parameters.cabal-build-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+          cabal v2-build << parameters.build-components >> << parameters.cabal-build-extra >> $_BUILD_EXTRA_CABAL_FLAGS -j<< parameters.cabal-threads >>
         fi
 
   - when:
@@ -209,10 +209,10 @@ steps:
               if [[ $(cat ./build/build-info.json | jq -rc 'select(."component-type" == "test")' | wc -l) -gt 0 ]]; then
                 if << parameters.build-components-separately >>; then
                   for _component_name in << parameters.build-components >>; do
-                    cabal v2-test "$_component_name" << parameters.cabal-test-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+                    cabal v2-test "$_component_name" << parameters.cabal-test-extra >> $_BUILD_EXTRA_CABAL_FLAGS -j<< parameters.cabal-threads >>
                   done
                 else
-                  cabal v2-test << parameters.build-components >> << parameters.cabal-test-extra >> $_BUILD_ENABLE_TESTS_FLAG $_BUILD_ENABLE_BENCHMARKS_FLAG -j<< parameters.cabal-threads >>
+                  cabal v2-test << parameters.build-components >> << parameters.cabal-test-extra >> $_BUILD_EXTRA_CABAL_FLAGS -j<< parameters.cabal-threads >>
                 fi
               else
                 echo "No tests found"

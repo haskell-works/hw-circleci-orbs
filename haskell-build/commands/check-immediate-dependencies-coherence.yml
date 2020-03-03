@@ -34,6 +34,5 @@ steps:
           echo "Error: Found incoherent immediate dependencies"
           exit 1
         fi
-        echo "export _BUILD_ENABLE_TESTS_FLAG=--enable-tests" >> $BASH_ENV
-        echo "export _BUILD_ENABLE_BENCHMARKS_FLAG=--enable-benchmarks" >> $BASH_ENV
+        echo "export _BUILD_EXTRA_CABAL_FLAGS=\"$_BUILD_EXTRA_CABAL_FLAGS --enable-tests --enable-benchmarks\"" >> $BASH_ENV
         source $BASH_ENV

@@ -18,4 +18,7 @@ steps:
           echo "haddock-for-hackage: for-hackage"           >> cabal.project
           echo "program-options"                            >> cabal.project
           echo "    haddock-options: --hyperlinked-source"  >> cabal.project
+
+          echo "export _BUILD_EXTRA_CABAL_FLAGS=\"$_BUILD_EXTRA_CABAL_FLAGS --enable-documentation\"" >> $BASH_ENV
+          source $BASH_ENV
         fi
