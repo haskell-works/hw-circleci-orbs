@@ -35,35 +35,35 @@ executors:
 
   i386-ghc-7_10_3:
     docker:
-      - image: quay.io/haskell_works/i386-ghc-7.10.3:latest
+      - image: quay.io/haskell_works/ghc-7.10.3:i386-ubuntu-18.04
   i386-ghc-8_0_2:
     docker:
-      - image: quay.io/haskell_works/i386-ghc-8.0.2:latest
+      - image: quay.io/haskell_works/ghc-8.0.2:i386-ubuntu-18.04
   i386-ghc-8_2_2:
     docker:
-      - image: quay.io/haskell_works/i386-ghc-8.2.2:latest
+      - image: quay.io/haskell_works/ghc-8.2.2:i386-ubuntu-18.04
   i386-ghc-8_4_3:
     docker:
-      - image: quay.io/haskell_works/i386-ghc-8.4.3:latest
+      - image: quay.io/haskell_works/ghc-8.4.3:i386-ubuntu-18.04
   i386-ghc-8_4_4:
     docker:
-      - image: quay.io/haskell_works/i386-ghc-8.4.4:latest
+      - image: quay.io/haskell_works/ghc-8.4.4:i386-ubuntu-18.04
   i386-ghc-8_6_3:
     docker:
-      - image: quay.io/haskell_works/i386-ghc-8.6.3:latest
+      - image: quay.io/haskell_works/ghc-8.6.3:i386-ubuntu-18.04
   i386-ghc-8_6_4:
     docker:
-      - image: quay.io/haskell_works/i386-ghc-8.6.4:latest
+      - image: quay.io/haskell_works/ghc-8.6.4:i386-ubuntu-18.04
   i386-ghc-8_6_5:
     docker:
-      - image: quay.io/haskell_works/i386-ghc-8.6.5:latest
+      - image: quay.io/haskell_works/ghc-8.6.5:i386-ubuntu-18.04
   i386-ghc-8_8_1:
     docker:
-      - image: quay.io/haskell_works/i386-ghc-8.8.1:latest
+      - image: quay.io/haskell_works/ghc-8.8.1:i386-ubuntu-18.04
   i386-ghc-8_8_2:
     docker:
-      - image: quay.io/haskell_works/i386-ghc-8.8.2:latest
+      - image: quay.io/haskell_works/ghc-8.8.2:i386-ubuntu-18.04
   i386-ghc-8_8_3:
     docker:
-      - image: quay.io/haskell_works/i386-ghc-8.8.3:latest
+      - image: quay.io/haskell_works/ghc-8.8.3:i386-ubuntu-18.04
 
