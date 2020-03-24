@@ -69,13 +69,6 @@ steps:
       command: |
         cabal v2-update -j<< parameters.cabal-threads >>
 
-  - set-project-env
-
-  - when:
-      name: Checking if hackage would accept cabal file
-      condition: << parameters.run-check >>
-      steps: [cabal-check-all]
-
   - restore_cache:
       keys:
         - dist-{{checksum "./build/build.env"}}-{{checksum "cabal.project"}}-{{checksum "cabal.project.freeze"}}-{{checksum "./build/project.summary"}}
@@ -86,6 +79,32 @@ steps:
       condition: << parameters.fail-incoherent-builds >>
       steps:
         - check-immediate-dependencies-coherence
+
+  - unless:
+      name: Configure without immediate dependencies coherence check
+      condition: << parameters.fail-incoherent-builds >>
+      steps:
+        - run:
+            name: Configuring the build
+            command: cabal v2-configure
+
+  - set-project-env
+
+  - when:
+      name: Checking if hackage would accept cabal file
+      condition: << parameters.run-check >>
+      steps: [cabal-check-all]
+
+  - run:
+      name: Configuring project
+      command: |
+        if << parameters.build-components-separately >>; then
+          for _component_name in << parameters.build-components >>; do
+            cabal v2-configure "$_component_name" << parameters.cabal-build-extra >> $_BUILD_EXTRA_CABAL_FLAGS -j<< parameters.cabal-threads >>
+          done
+        else
+          cabal v2-configure << parameters.build-components >> << parameters.cabal-build-extra >> $_BUILD_EXTRA_CABAL_FLAGS -j<< parameters.cabal-threads >>
+        fi
 
   - when:
       name: Running before-build hook steps

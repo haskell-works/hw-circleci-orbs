@@ -123,16 +123,7 @@ steps:
   - when:
       name: Checking if hackage would accept cabal file
       condition: << parameters.run-check >>
-      steps:
-        - run:
-            name: Running cabal check (can be disabled in CI with run-check=false)
-            command: |
-              for x in $(cat ./build/build-info.json | jq -r .path | sort -u); do
-                ( echo "\n# Running cabal check in $x"
-                  cd "$x"
-                  cabal check
-                )
-              done
+      steps: [cabal-check-all]
 
   - run:
       name: Configuring project
