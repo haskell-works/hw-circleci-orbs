@@ -44,6 +44,10 @@ parameters:
   after-test:
     description: Optional steps to run after executing unit tests
     type: steps
+  github-token:
+    description: Github OAuth2 token to use when making Github API requests
+    type: string
+    default: ${GITHUB_TOKEN}
   cabal-cache-tag:
     description: Cabal cache tag
     type: string
@@ -77,7 +81,8 @@ steps:
       cache-version: << parameters.cache-version >>
 
   - install-cabal-cache:
-      tag: << parameters.cabal-cache-tag >>
+      tag:            << parameters.cabal-cache-tag >>
+      github-token:   << parameters.github-token >>
 
   - restore_cache:
       keys:
