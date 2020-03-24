@@ -9,6 +9,11 @@ parameters:
       For list of tags see https://github.com/haskell-works/cabal-cache/tags
 
     type: string
+  uri:
+    description: |
+      Cabal cache URI.  The location of the cabal-cache binary to download.  This is optional
+
+    type: string
 steps:
   - run:
       name: Install binary cache tool (cabal-cache)
@@ -18,15 +23,22 @@ steps:
         else
           echo "Using supplied Github token"
           GITHUB_OAUTH_TOKEN_HEADER="-H 'Authorization: token <<parameters.github-token>>'"
+          eval "curl -s $GITHUB_OAUTH_TOKEN_HEADER -X GET https://api.github.com/rate_limit"
         fi
 
-        if [ "<< parameters.tag >>" = "latest" ]; then
-          curl -s --retry 3 $GITHUB_OAUTH_TOKEN_HEADER -X GET https://api.github.com/repos/haskell-works/cabal-cache/releases/latest > /tmp/releases.txt
-          CACHE_TOOL_TAG=$(curl -s --retry 3 $GITHUB_OAUTH_TOKEN_HEADER -X GET https://api.github.com/repos/haskell-works/cabal-cache/releases/latest | jq -rc .tag_name)
+        if [ "<< parameters.uri >>" = "" ]; then
+          if [ "<< parameters.tag >>" = "latest" ]; then
+            CACHE_TOOL_TAG=$(eval "curl -s $GITHUB_OAUTH_TOKEN_HEADER -X GET https://api.github.com/repos/haskell-works/cabal-cache/releases/latest" | jq -rc .tag_name)
+          else
+            CACHE_TOOL_TAG="<< parameters.tag >>"
+          fi
+
+          CACHE_TOOL_URI="https://github.com/haskell-works/cabal-cache/releases/download/${CACHE_TOOL_TAG}/cabal-cache_${BUILD_ARCH}_${BUILD_OS_NAME}.tar.gz"
         else
-          CACHE_TOOL_TAG="<< parameters.tag >>"
+          CACHE_TOOL_URI="<< parameters.uri >>"
         fi
-        echo "Downloading: https://github.com/haskell-works/cabal-cache/releases/download/${CACHE_TOOL_TAG}/cabal-cache_${BUILD_ARCH}_${BUILD_OS_NAME}.tar.gz"
-        curl -Ls https://github.com/haskell-works/cabal-cache/releases/download/${CACHE_TOOL_TAG}/cabal-cache_${BUILD_ARCH}_${BUILD_OS_NAME}.tar.gz | tar -xvz -C /tmp/
+
+        echo "Downloading: $CACHE_TOOL_URI"
+        curl -Ls "$CACHE_TOOL_URI" | tar -xvz -C /tmp/
         cp /tmp/cabal-cache /usr/local/bin/
         cabal-cache version

@@ -123,6 +123,10 @@ jobs:
         description: Github tag of the 'cabal-cache' tool to use for binary caching.
         type: string
         default: latest
+      cabal-cache-uri:
+        description: Cabal cache URI.  The location of the cabal-cache binary to download.
+        type: string
+        default: ${CABAL_CACHE_URI}
       binary-cache-uri:
         description: Binary cache URI.  This may be an S3 URI.
         type: string
@@ -174,6 +178,7 @@ jobs:
                 after-test:                   << parameters.after-test >>
                 github-token:                 << parameters.github-token >>
                 cabal-cache-tag:              << parameters.cabal-cache-tag >>
+                cabal-cache-uri:              << parameters.cabal-cache-uri >>
                 binary-cache-uri:             << parameters.binary-cache-uri >>
                 binary-cache-uri-suffix:      << parameters.binary-cache-uri-suffix >>
                 binary-cache-region:          << parameters.binary-cache-region >>
