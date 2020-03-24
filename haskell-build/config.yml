@@ -115,6 +115,10 @@ jobs:
     executor: << parameters.executor >>
     parameters:
       <<: *build-params
+      github-token:
+        description: Github OAuth2 token to use when making Github API requests
+        type: string
+        default: ${GITHUB_TOKEN}
       cabal-cache-tag:
         description: Github tag of the 'cabal-cache' tool to use for binary caching.
         type: string
@@ -168,6 +172,7 @@ jobs:
                 before-build:                 << parameters.before-build >>
                 after-build:                  << parameters.after-build >>
                 after-test:                   << parameters.after-test >>
+                github-token:                 << parameters.github-token >>
                 cabal-cache-tag:              << parameters.cabal-cache-tag >>
                 binary-cache-uri:             << parameters.binary-cache-uri >>
                 binary-cache-uri-suffix:      << parameters.binary-cache-uri-suffix >>

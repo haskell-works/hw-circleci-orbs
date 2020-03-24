@@ -1,4 +1,8 @@
 parameters:
+  github-token:
+    description: Github OAuth2 token to use when making Github API requests
+    type: string
+    default: ${GITHUB_TOKEN}
   tag:
     description: |
       Cache tool version (tag name or "latest").  Should be at least v1.0.0.1.
@@ -9,8 +13,16 @@ steps:
   - run:
       name: Install binary cache tool (cabal-cache)
       command: |
+        if [ "<<parameters.github-token>>" = "" ]; then
+          GITHUB_OAUTH_TOKEN_HEADER=""
+        else
+          echo "Using supplied Github token"
+          GITHUB_OAUTH_TOKEN_HEADER="-H 'Authorization: token <<parameters.github-token>>'"
+        fi
+
         if [ "<< parameters.tag >>" = "latest" ]; then
-          CACHE_TOOL_TAG=$(curl -s --retry 3 -X GET https://api.github.com/repos/haskell-works/cabal-cache/releases/latest | jq -rc .tag_name)
+          curl -s --retry 3 $GITHUB_OAUTH_TOKEN_HEADER -X GET https://api.github.com/repos/haskell-works/cabal-cache/releases/latest > /tmp/releases.txt
+          CACHE_TOOL_TAG=$(curl -s --retry 3 $GITHUB_OAUTH_TOKEN_HEADER -X GET https://api.github.com/repos/haskell-works/cabal-cache/releases/latest | jq -rc .tag_name)
         else
           CACHE_TOOL_TAG="<< parameters.tag >>"
         fi
