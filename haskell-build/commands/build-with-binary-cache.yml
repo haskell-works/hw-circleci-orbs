@@ -51,6 +51,10 @@ parameters:
   cabal-cache-tag:
     description: Cabal cache tag
     type: string
+  cabal-cache-uri:
+    description: Cabal cache URI.  The location of the cabal-cache binary to download.
+    type: string
+    default: ${CABAL_CACHE_URI}
   binary-cache-uri:
     description: Binary cache URI.  This may be an S3 URI.
     type: string
@@ -82,6 +86,7 @@ steps:
 
   - install-cabal-cache:
       tag:            << parameters.cabal-cache-tag >>
+      uri:            << parameters.cabal-cache-uri >>
       github-token:   << parameters.github-token >>
 
   - restore_cache:
