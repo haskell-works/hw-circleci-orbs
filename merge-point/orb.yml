@@ -1,0 +1,55 @@
+version: 2.1
+
+description: |
+  Merge point
+  Repository: https://github.com/haskell-works/hw-circle-orbs
+
+executors:
+  default:
+    docker:
+      - image: circleci/buildpack-deps:latest
+
+commands:
+  merge-point:
+    description: Merge point
+    steps:
+      - run:
+          name: "Merge point"
+          command: echo "Merge point"
+
+jobs:
+  merge-point:
+    description: Creates a new release using a version from .cabal file
+    parameters:
+      executor:
+        type: executor
+        default: default
+    executor: << parameters.executor >>
+    steps:
+      - merge-point
+
+examples:
+  example-merge-point:
+    description: |
+      Merge point.
+      Use this to aggregate multiple job dependencies
+    usage:
+      version: 2.1
+
+      orbs:
+        merge-point: haskell-works/merge-point@1.0.0 # use latest version
+        hello-build: circleci/hello-build@0.0.9
+
+      workflow:
+        release-my-application:
+          jobs:
+            - hello-build/hello-build:
+                name: Hello 1
+
+            - hello-build/hello-build:
+                name: Hello 2
+
+            - merge-point/merge-point:
+                requires:
+                  - Hello 1
+                  - Hello 2
