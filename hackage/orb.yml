@@ -151,5 +151,5 @@ jobs:
           publish: << parameters.publish >>
           workspace-name: << parameters.workspace-name >>
       - when:
-          condidion: << parameters.after-upload >>
+          condition: << parameters.after-upload >>
           steps: << parameters.after-upload >>
