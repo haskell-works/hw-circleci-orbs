@@ -35,6 +35,9 @@ executors:
   ghc-8_10_1:
     docker:
       - image: quay.io/haskell_works/ghc-8.10.1:ubuntu-18.04
+  ghc-8_10_2:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.10.2:ubuntu-18.04
 
   ubuntu-16_04-ghc-7_10_3:
     docker:
@@ -72,6 +75,9 @@ executors:
   ubuntu-16_04-ghc-8_10_1:
     docker:
       - image: quay.io/haskell_works/ghc-8.10.1:ubuntu-16.04
+  ubuntu-16_04-ghc-8_10_2:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.10.2:ubuntu-16.04
 
   i386-ghc-7_10_3:
     docker:
@@ -109,3 +115,6 @@ executors:
   i386-ghc-8_10_1:
     docker:
       - image: quay.io/haskell_works/ghc-8.10.1:i386-ubuntu-18.04
+  i386-ghc-8_10_2:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.10.2:i386-ubuntu-18.04
