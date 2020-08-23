@@ -1,0 +1,95 @@
+version: 2.1
+
+description: Runs HLint
+
+executors:
+  default:
+    docker:
+      - image: quay.io/haskell_works/ghc-8.6.5:latest
+
+commands:
+  hlint:
+    description: Runs HLint
+    parameters:
+      base-url:
+        description: Base URL path from which to download HLint
+        type: string
+        default: https://dl.haskellworks.io/binaries/hlint
+      version:
+        description: HLint version
+        type: string
+        default: 3.1.6
+      arch:
+        description: CPU architecture of the HLint binary
+        type: string
+        default: x86_64
+      os:
+        description: OS of the HLint binary
+        type: string
+        default: linux
+      directories:
+        description: Directories to run hlint on
+        type: string
+        default: .
+      options:
+        description: Options to pass to the HLint process
+        type: string
+        default: ""
+    steps:
+      - run:
+          name: Running hlint
+          command: |
+            HLINT_BASE_URL="<< parameters.base-url >>"
+            HLINT_VERSION="<< parameters.version >>"
+            HLINT_ARCH="<< parameters.arch >>"
+            HLINT_OS="<< parameters.os >>"
+            HLINT_TAR_GZ="hlint-$HLINT_VERSION-$HLINT_ARCH-$HLINT_OS.tar.gz"
+            HLINT_URL="$HLINT_BASE_URL/$HLINT_TAR_GZ"
+            echo "Downloading from $HLINT_URL"
+            curl "$HLINT_URL" -o "/tmp/$HLINT_TAR_GZ"
+            tar -zxvf "/tmp/$HLINT_TAR_GZ" -C /usr/bin/
+
+            hlint << parameters.directories >> << parameters.options >>
+
+jobs:
+  hlint:
+    description: Uploads package to Hackage
+    parameters:
+      executor:
+        type: executor
+        default: default
+      base-url:
+        description: Base URL path from which to download HLint
+        type: string
+        default: https://dl.haskellworks.io/binaries/hlint
+      version:
+        description: HLint version
+        type: string
+        default: 3.1.6
+      arch:
+        description: Architecture of the HLint binary
+        type: string
+        default: x86_64
+      os:
+        description: Architecture of the HLint binary
+        type: string
+        default: linux
+      directories:
+        description: Directories to run hlint on
+        type: string
+        default: .
+      options:
+        description: Options to pass to the HLint process
+        type: string
+        default: ""
+    executor: << parameters.executor >>
+    steps:
+      - checkout
+
+      - hlint:
+          base-url: << parameters.base-url >>
+          version: << parameters.version >>
+          arch: << parameters.arch >>
+          os: << parameters.os >>
+          directories: << parameters.directories >>
+          options: << parameters.options >>
