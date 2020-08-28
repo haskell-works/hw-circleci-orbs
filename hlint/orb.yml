@@ -5,7 +5,7 @@ description: Runs HLint
 executors:
   default:
     docker:
-      - image: quay.io/haskell_works/ghc-8.6.5:latest
+      - image: quay.io/haskell_works/curl:ubuntu-18.04
 
 commands:
   hlint:
