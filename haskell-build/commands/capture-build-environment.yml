@@ -18,7 +18,14 @@ steps:
         BUILD_ARCH=$(uname -m)
 
         BUILD_OS_NAME=$(uname -s | tr '[:upper:]' '[:lower:]')
-        if [ "$BUILD_OS_NAME" = "darwin" ]; then BUILD_OS_NAME="osx"; fi
+
+        echo "Build OS: $BUILD_OS_NAME"
+
+        case "$BUILD_OS_NAME" in
+          darwin)     BUILD_OS_NAME="osx"   ;;
+          msys_nt-*)  BUILD_OS_NAME="nt"    ;;
+          *)                                ;;
+        esac
 
         echo "CACHE_VERSION=<< parameters.cache-version >>"         > ./build/build.env
         echo "BUILD_GHC_VERSION=$BUILD_GHC_VERSION"                >> ./build/build.env
