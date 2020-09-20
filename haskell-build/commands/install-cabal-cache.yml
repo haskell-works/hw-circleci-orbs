@@ -26,6 +26,14 @@ steps:
           eval "curl -s $GITHUB_OAUTH_TOKEN_HEADER -X GET https://api.github.com/rate_limit"
         fi
 
+        export PATH="$LOCAL_BIN:$PATH"
+        echo "Path: $PATH"
+        echo "Local bin: $LOCAL_BIN"
+        echo "Listing local bin"
+        ls $LOCAL_BIN
+        echo "which tar"
+        which tar
+
         if [ "<< parameters.uri >>" = "" ]; then
           if [ "<< parameters.tag >>" = "latest" ]; then
             CACHE_TOOL_TAG=$(eval "curl -s $GITHUB_OAUTH_TOKEN_HEADER -X GET https://api.github.com/repos/haskell-works/cabal-cache/releases/latest" | jq -rc .tag_name)
@@ -39,6 +47,5 @@ steps:
         fi
 
         echo "Downloading: $CACHE_TOOL_URI"
-        curl -Ls "$CACHE_TOOL_URI" | tar -xvz -C /tmp/
-        cp /tmp/cabal-cache /usr/local/bin/
+        curl -Ls "$CACHE_TOOL_URI" | tar -xvz -C "$LOCAL_BIN/"
         cabal-cache version

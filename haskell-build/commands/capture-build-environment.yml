@@ -22,14 +22,32 @@ steps:
         echo "Build OS: $BUILD_OS_NAME"
 
         case "$BUILD_OS_NAME" in
-          darwin)     BUILD_OS_NAME="osx"   ;;
-          msys_nt-*)  BUILD_OS_NAME="nt"    ;;
-          *)                                ;;
+          darwin)
+            export BUILD_OS_NAME="osx"
+            export LOCAL_BIN="/usr/local/bin"
+            ;;
+
+          msys_nt-*)
+            mkdir -p "$(pwd)/bin"
+            cp "/c/Program Files/Git/usr/bin/tar.exe" "$(pwd)/bin/tar.exe"
+            export BUILD_OS_NAME="nt"
+            export LOCAL_BIN="$(pwd)/bin"
+            export PATH="$LOCAL_BIN:$PATH"
+            ;;
+
+          *)
+            export LOCAL_BIN="/usr/local/bin"
+            ;;
         esac
 
-        echo "CACHE_VERSION=<< parameters.cache-version >>"         > ./build/build.env
-        echo "BUILD_GHC_VERSION=$BUILD_GHC_VERSION"                >> ./build/build.env
-        echo "BUILD_ARCH=$BUILD_ARCH"                              >> ./build/build.env
-        echo "BUILD_OS_NAME=$BUILD_OS_NAME"                        >> ./build/build.env
+        cat > ./build/build.env <<EOF
+        export CACHE_VERSION="<< parameters.cache-version >>"
+        export BUILD_GHC_VERSION="$BUILD_GHC_VERSION"
+        export BUILD_ARCH="$BUILD_ARCH"
+        export BUILD_OS_NAME="$BUILD_OS_NAME"
+        export LOCAL_BIN="$LOCAL_BIN"
+        export PATH="$PATH"
+        EOF
+        
         cat ./build/build.env >> $BASH_ENV
         cat ./build/build.env
